@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    function locked() {
+      return changed().hasAny(['redeemed'])
+        || (resource.data.get('referredBy', '') != '' && changed().hasAny(['referredBy', 'refCode']))
+        || (resource.data.get('code', '') != '' && changed().hasAny(['code']));
+    }
+
+    match /admins/{uid} {
+      allow read: if owner(uid);
+    }
+    match /codes/{code} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+    }
+    match /referrals/{newUid} {
+      allow read: if owner(newUid) || (signedIn() && resource.data.by == request.auth.uid) || isAdmin();
+      allow create: if owner(newUid) && request.resource.data.by != newUid
+        && request.resource.data.done == false && request.resource.data.credited == false;
+      allow update: if isAdmin()
+        || (owner(newUid) && changed().hasOnly(['done']) && request.resource.data.done == true)
+        || (signedIn() && resource.data.by == request.auth.uid && resource.data.done == true && resource.data.credited == false
+            && changed().hasOnly(['credited']) && request.resource.data.credited == true);
+    }
+    // Commandes envoyées depuis le site (sans nom ni téléphone) : pour les statistiques de l'admin
+    match /commandes/{id} {
+      allow read: if isAdmin();
+      allow create: if request.resource.data.keys().hasOnly(['no', 'mode', 'total', 'slices', 'uid', 'items', 'day', 'createdAt'])
+        && request.resource.data.items is list && request.resource.data.items.size() <= 40
+        && request.resource.data.createdAt == request.time
+        && (request.resource.data.uid == '' || (signedIn() && request.resource.data.uid == request.auth.uid));
+    }
+    // Disponibilité des produits : tout le monde lit, seul l'admin modifie
+    match /dispo/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /users/{uid} {
+      allow read: if owner(uid) || isAdmin();
+      allow create: if owner(uid) && !request.resource.data.keys().hasAny(['redeemed']);
+      allow update: if isAdmin() || (owner(uid) && !locked());
+      match /orders/{orderId} {
+        allow read: if owner(uid) || isAdmin();
+        allow create: if owner(uid);
+      }
+    }
+  }
+}
