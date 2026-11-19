@@ -1003,7 +1003,7 @@ const CONFIG = {
     minOrderModes: ["Livraison"],       // modes concernés par le minimum (à emporter / sur place : pas de minimum)
     // Offre nouveau client : remise sur la 1re commande, reconnue par le numéro de téléphone (pas l'email)
     firstOrder: { percent: 10, until: "2026-12-06" },   // percent 0 = offre coupée ; until "2026-12-05" = dernier jour (vide = pas de date de fin)
-    // Minuteur affiché au client après l'envoi (en minutes, estimation) : À CONFIRMER par Simo
+    // Minuteur affiché au client après l'envoi (en minutes) : confirmé par Simo (livraison 15-30, à emporter / sur place 20)
     prepMinutes: { "Livraison": [15, 30], "À emporter": 20, "Sur place": 20 }   // [min, max] = fourchette
   },
 
