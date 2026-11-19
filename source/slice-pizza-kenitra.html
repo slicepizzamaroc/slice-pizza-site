@@ -846,7 +846,7 @@ html[dir="rtl"] .otimer{padding:.8rem 1rem .8rem 2.6rem}html[dir="rtl"] .otimer 
         <li><a href="#lovers">Slice Lovers</a></li>
       </ul></div>
     </div>
-    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v45</span></div>
+    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v46</span></div>
   </div>
 </footer>
 
@@ -1386,7 +1386,7 @@ const CONFIG = {
   const n = has(C.loyalty.stamps) ? Math.max(2, Math.min(15, +C.loyalty.stamps)) : 10;
   $("[data-stamps]").innerHTML = Array.from({ length: n }, (_, i) => `<i class="${i < 3 ? "on" : ""}"></i>`).join("");
   $("[data-loyalty-rule]").innerHTML = has(C.loyalty.stamps) && has(C.loyalty.reward)
-    ? `${C.loyalty.stamps} commandes = ${esc(C.loyalty.reward)}. 1 case par commande, 1 case par jour maximum.`
+    ? `${C.loyalty.stamps} commandes avec slice = ${esc(C.loyalty.reward)}. 1 case par commande, 1 case par jour maximum.`
     : (C.draft ? `Règle du programme ${TODO} (nombre de slices + récompense).` : "Programme bientôt disponible. Reste branché.");
   $("[data-perks]").innerHTML = C.loyalty.perks.map(p => `<li><span>${p.icon}</span>${esc(p.text)}</li>`).join("");
 
@@ -1888,18 +1888,18 @@ const CONFIG = {
     try {
       const f = await load();
       const refNow = !!(profile && profile.referredBy && !profile.refDone), bonus = refNow ? REF_BONUS : 0;
-      /* Carte Slice Lovers : 1 case par commande (peu importe le nombre de slices), 1 case par jour maximum */
+      /* Carte Slice Lovers : 1 case par commande qui contient au moins 1 slice (peu importe combien), 1 case par jour maximum */
       const dd = new Date(), day = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, "0")}-${String(dd.getDate()).padStart(2, "0")}`;
-      const stamp = profile && profile.stampDay === day ? 0 : 1;
+      const stamp = o.slices > 0 && !(profile && profile.stampDay === day) ? 1 : 0;
       await f.addDoc(f.collection(f.db, "users", user.uid, "orders"), { ...o, stamp, refBonus: bonus, createdAt: f.serverTimestamp() });
       await f.setDoc(f.doc(f.db, "users", user.uid), {
         name: o.client.name, phone: o.client.phone, address: o.client.address || "", geo: o.client.geo || "",
-        email: user.email || "", slices: f.increment(stamp + bonus), stampDay: day, orders: f.increment(1), updatedAt: f.serverTimestamp(), ...(refNow ? { refDone: true } : {})
+        email: user.email || "", slices: f.increment(stamp + bonus), ...(stamp ? { stampDay: day } : {}), orders: f.increment(1), updatedAt: f.serverTimestamp(), ...(refNow ? { refDone: true } : {})
       }, { merge: true });
       if (refNow) { try { await f.setDoc(f.doc(f.db, "referrals", user.uid), { done: true }, { merge: true }); } catch (e) { console.warn(e); } App.toast("🎁 Parrainage : 1 slice cochée sur ta carte !"); }
-      profile = { ...(profile || {}), slices: ((profile && profile.slices) || 0) + stamp + bonus, stampDay: day, orders: ((profile && profile.orders) || 0) + 1, ...(refNow ? { refDone: true } : {}) };
+      profile = { ...(profile || {}), slices: ((profile && profile.slices) || 0) + stamp + bonus, ...(stamp ? { stampDay: day } : {}), orders: ((profile && profile.orders) || 0) + 1, ...(refNow ? { refDone: true } : {}) };
       orders.unshift({ ...o, stamp, createdAt: { toDate: () => new Date() } });
-      if (!refNow) App.toast(stamp ? "⭐ 1 case cochée sur ta carte Slice Lovers" : "Commande envoyée · ta case du jour est déjà cochée");
+      if (!refNow && o.slices > 0) App.toast(stamp ? "⭐ 1 case cochée sur ta carte Slice Lovers" : "Commande envoyée · ta case du jour est déjà cochée");
       paintLoyalty(); renderAccount();
     } catch (e) { console.warn(e); }
   };
@@ -1997,7 +1997,7 @@ const CONFIG = {
     if (!ready) { box.innerHTML = `<p class="note">Chargement…</p>`; return; }
     if (!user) {
       box.innerHTML = `<p>Connecte-toi pour retrouver tes infos, tes commandes et tes points Slice Lovers.</p>
-        <ul class="acc-perks"><li>⭐ ${N()} commandes = 1 slice offerte</li><li>📦 Historique de tes commandes</li><li>🎁 Parraine tes amis : 1 slice cochée chacun</li><li>🔁 Recommande en 1 clic</li><li>📍 Adresse et téléphone gardés</li></ul>${App.authSlot()}`;
+        <ul class="acc-perks"><li>⭐ ${N()} commandes avec slice = 1 slice offerte</li><li>📦 Historique de tes commandes</li><li>🎁 Parraine tes amis : 1 slice cochée chacun</li><li>🔁 Recommande en 1 clic</li><li>📍 Adresse et téléphone gardés</li></ul>${App.authSlot()}`;
       return;
     }
     const { n, have, cur, won, avail } = rewards(profile);
@@ -2009,7 +2009,7 @@ const CONFIG = {
         <div class="acc-pts__top"><span class="display">${cur}/${n}</span><span>cases vers ta prochaine <b>${esc(CONFIG.loyalty.reward || "slice offerte")}</b></span></div>
         <div class="acc-stamps">${Array.from({ length: n }, (_, i) => `<i class="${i < cur ? "on" : ""}"></i>`).join("")}</div>
         <p class="acc-small">${cur === 0 && have === 0 ? "Ta première commande coche ta première case !" : `Encore <b>${n - cur}</b> commande${n - cur > 1 ? "s" : ""} avant ta récompense.`}</p>
-        <p class="acc-small">1 case par commande, 1 case par jour maximum.</p>
+        <p class="acc-small">1 case par commande avec au moins 1 slice, 1 case par jour maximum.</p>
         ${avail ? `<p class="acc-gift">🎉 <b>${avail} slice${avail > 1 ? "s" : ""} offerte${avail > 1 ? "s" : ""}</b> à récupérer : montre cet écran en boutique ou dis-le dans ta commande.</p>` : ""}
       </section>
       ${isAdmin ? `<button type="button" class="btn sm acc-admin" data-admin-open>📊 Tableau de bord Slice Pizza</button>` : ""}
@@ -2392,7 +2392,8 @@ const CONFIG = {
     "Chaque commande te rapproche d'une récompense. Plus tu reviens, plus Slice Pizza te le rend.": "كل كوموند كتقربك من كادو. كل ما رجعتي، Slice Pizza كترد ليك الخير.",
     "Rejoindre les Slice Lovers": "دخل مع Slice Lovers", "📲 Installer l'app": "📲 تيليشارجي الأبليكاسيون",
     "Points à chaque commande": "نقط ف كل كوموند", "Récompenses": "كادوات", "Challenges": "تحديات", "Offres exclusives": "عروض خاصة بيك",
-    "10 commandes = 1 slice offerte. 1 case par commande, 1 case par jour maximum.": "10 كوموندات = سلايس فابور. خانة وحدة ف كل كوموند، خانة وحدة ف النهار ماكسيموم.",
+    "10 commandes avec slice = 1 slice offerte. 1 case par commande, 1 case par jour maximum.": "10 كوموندات فيهم سلايس = سلايس فابور. خانة وحدة ف كل كوموند، خانة وحدة ف النهار ماكسيموم.",
+    "1 case par commande avec au moins 1 slice, 1 case par jour maximum.": "خانة وحدة ف كل كوموند فيها سلايس، خانة وحدة ف النهار ماكسيموم.",
     "1 case par commande, 1 case par jour maximum.": "خانة وحدة ف كل كوموند، خانة وحدة ف النهار ماكسيموم.", "cases vers ta prochaine": "خانات باش توصل لـ", "cases": "خانات",
     "commandes avant ta récompense.": "كوموندات وتربح الكادو ديالك.", "commande avant ta récompense.": "كوموند وتربح الكادو ديالك.",
     "Ta première commande coche ta première case !": "أول كوموند كتشيكي أول خانة!", "⭐ case cochée": "⭐ خانة مشيكية",
@@ -2525,7 +2526,7 @@ const CONFIG = {
     [/^👥 (\d+) amis? parrainés? · \+(\d+) slices? cochées?$/, (m, a, b) => `👥 ${a} صحاب جبتيهم · +${b} سلايس مشيكية`],
     [/^🎁 (\d+) clients? venus? par parrainage$/, (m, a) => `🎁 ${a} كليان جاو بالكود`],
     [/^🍕 Donner 1 slice offerte \((\d+)\)$/, (m, a) => `🍕 عطي سلايس فابور (${a})`],
-    [/^⭐ (\d+) commandes = 1 slice offerte$/, (m, a) => `⭐ ${a} كوموندات = سلايس فابور`],
+    [/^⭐ (\d+) commandes avec slice = 1 slice offerte$/, (m, a) => `⭐ ${a} كوموندات فيهم سلايس = سلايس فابور`],
     [/^(\d+) commandes? depuis (.+?)(?: · ([\d\s ]+) DH au total)?$/, (m, a, b, c) => `${a} كوموند من ${b}${c ? ` · ${c} درهم ف المجموع` : ""}`],
     [/^Voir tout l'historique \((\d+)\)$/, (m, a) => `شوف كاع الكوموندات (${a})`],
     [/^-(\d+) DH nouveau client$/, (m, a) => `-${a} درهم كليان جديد`],
