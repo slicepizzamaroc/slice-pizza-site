@@ -846,7 +846,7 @@ html[dir="rtl"] .otimer{padding:.8rem 1rem .8rem 2.6rem}html[dir="rtl"] .otimer 
         <li><a href="#lovers">Slice Lovers</a></li>
       </ul></div>
     </div>
-    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v46</span></div>
+    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v47</span></div>
   </div>
 </footer>
 
@@ -1507,9 +1507,9 @@ const CONFIG = {
   function foCheck() {
     if (!foOn() || !phoneOk(client.phone)) { fo = { tel: "", st: "" }; return paintTotals(); }
     const t = normTel(client.phone), S = window.SliceApp || {};
-    if (fo.tel === t && (fo.st === "new" || fo.st === "old")) return paintTotals();
+    if (fo.tel === t && fo.st === "old") return paintTotals();
     if (telsSeen.includes(t) || (S.ordersCount && S.ordersCount() > 0)) { fo = { tel: t, st: "old" }; return paintTotals(); }
-    fo = { tel: t, st: "wait" }; paintTotals();
+    if (fo.tel !== t || !fo.st) { fo = { tel: t, st: "wait" }; paintTotals(); }
     (S.telSeen ? S.telSeen(t) : Promise.reject(new Error("off")))
       .then(seen => { if (fo.tel === t) { fo.st = seen ? "old" : "new"; paintTotals(); } })
       .catch(() => { if (fo.tel === t) { fo.st = "?"; paintTotals(); } });
@@ -1562,28 +1562,25 @@ const CONFIG = {
     const total = priced ? ids.reduce((s, id) => s + find(id).price * cart[id], 0) : null;
     const no = "SP-" + Date.now().toString(36).slice(-5).toUpperCase();
     const disc = foDisc(total), tel = normTel(client.phone);
-    const msg = `Salam Slice Pizza ! 🍕 Nouvelle commande ${no} :\n`
-      + (disc ? `🆕 NOUVEAU CLIENT · 1re commande : -${FOP} % appliqué${fo.st === "new" ? "" : " (numéro non vérifié en ligne)"}\n` : "")
+    const msg = `Salam Slice Pizza ! Nouvelle commande *${no}* :\n`
+      + (disc ? `*NOUVEAU CLIENT* · 1re commande : -${FOP} % appliqué${fo.st === "new" ? "" : " (numéro non vérifié en ligne)"}\n` : "")
       + ids.map(id => `• ${cart[id]} × ${label(find(id))}`).join("\n")
       + (total !== null ? (disc ? `\nSous-total : ${total} DH\nRemise nouveau client -${FOP} % : -${disc} DH\nTotal à payer : ${total - disc} DH` : `\nTotal estimé : ${total} DH`) : "")
-      + `\n\n👤 ${client.name.trim()}\n📞 ${client.phone.trim()}\n🛵 ${client.mode}`
-      + (client.mode === "Livraison" ? (client.address.trim() ? `\n🏠 ${client.address.trim()}` : "") + (client.geo ? `\n📍 ${client.geo}` : "") : "")
-      + (client.note.trim() ? `\n📝 ${client.note.trim()}` : "")
-      + (disc ? `\n\n👀 Staff : remise -${FOP} % nouveau client. Si ce numéro a déjà commandé chez nous, la remise ne s'applique pas.` : "")
+      + `\n\nNom : ${client.name.trim()}\nTél : ${client.phone.trim()}\nMode : ${client.mode}`
+      + (client.mode === "Livraison" ? (client.address.trim() ? `\nAdresse : ${client.address.trim()}` : "") + (client.geo ? `\nPosition : ${client.geo}` : "") : "")
+      + (client.note.trim() ? `\nRemarque : ${client.note.trim()}` : "")
+      + (disc ? `\n\nStaff : remise -${FOP} % nouveau client. Si ce numéro a déjà commandé chez nous, la remise ne s'applique pas.` : "")
       + "\n\nMerci de me confirmer la commande.";
     saveClient();
-    if (!telsSeen.includes(tel)) { telsSeen.push(tel); try { localStorage.setItem("slice-tels", JSON.stringify(telsSeen.slice(-20))); } catch (e) {} }
-    if (window.SliceApp && SliceApp.telMark) SliceApp.telMark(tel);
     const SL = { "combo-slices": 2, "combo-slice-chili": 1, "combo-slice-chili-2": 2, "combo-trio-slice": 3, "combo-slice-box": 4 };
     const slices = ids.reduce((n, id) => { const b = id.split("~")[0].split("|")[0], o = C.menu.find(x => x.id === b);
       return n + cart[id] * (SL[b] || (o && o.cat === "slices" ? 1 : 0) || (id === "menu-enfant|Slice" ? 1 : 0)); }, 0);
     const items = ids.map(id => ({ id, name: label(find(id)), qty: cart[id], price: find(id).price ?? null }));
-    if (window.SliceApp && SliceApp.onOrder) SliceApp.onOrder({ no, items, total: total !== null ? total - disc : null, disc, slices,
+    if (window.SliceApp && SliceApp.onOrder) SliceApp.onOrder({ no, tel, items, total: total !== null ? total - disc : null, disc, slices,
       client: { name: client.name.trim(), phone: client.phone.trim(), mode: client.mode, address: client.address.trim(), geo: client.geo, note: client.note.trim() } });
     window.open(wa(msg), "_blank", "noopener");
     if (mailTo) sendMail(mailTo, no, items, total !== null ? total - disc : null);
     startTimer(no, client.mode);
-    fo = { tel, st: "old" };
   }
 
   /* ---------- Récap par email (EmailJS) ---------- */
@@ -1820,7 +1817,7 @@ const CONFIG = {
   const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const V = "10.12.2", base = `https://www.gstatic.com/firebasejs/${V}/`;
-  let fb = null, FB = null, user = null, profile = null, ready = false, orders = [], isAdmin = false, adminUsers = [], adminQ = "", adminCmd = [], admPer = 7, admView = "stats";
+  let fb = null, FB = null, user = null, profile = null, ready = false, orders = [], isAdmin = false, adminUsers = [], adminQ = "", adminCmd = [], admPer = 7, admView = "cmd", pend = [], pendOff = null, pendBusy = {};
 
   $$("[data-account]").forEach(b => b.hidden = false);
 
@@ -1870,37 +1867,42 @@ const CONFIG = {
     : `<button type="button" class="gbtn" data-glogin>${gIcon}Continuer avec Google</button><p class="note" style="margin:.2rem 0 0">Connecte-toi pour gagner tes points Slice Lovers à chaque commande.</p>`;
 
   App.userEmail = () => (user && user.email) || "";
-  App.ordersCount = () => (profile && profile.orders) || 0;
+  const dayKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  App.ordersCount = () => orders.filter(o => !o.status || o.status === "ok").length;   // commandes confirmées seulement
   /* Numéros déjà servis : on garde seulement une empreinte du numéro (pas le numéro lui-même) */
   const telKey = async t => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode("slice-pizza:" + t)))].map(b => b.toString(16).padStart(2, "0")).join("");
   App.telSeen = async t => { const f = await load(); return (await f.getDoc(f.doc(f.db, "clients", await telKey(t)))).exists(); };
   App.telMark = async t => { try { const f = await load(), r = f.doc(f.db, "clients", await telKey(t)); if (!(await f.getDoc(r)).exists()) await f.setDoc(r, { at: f.serverTimestamp() }); } catch (e) { console.warn(e); } };
   App.refCode = () => (profile && profile.code) || "";
   /* Après l'envoi d'une commande : statistiques (sans données perso) + historique + points */
+  /* Après l'envoi : la commande est « en attente ». Le site ne peut pas savoir si le message WhatsApp est vraiment parti :
+     la case fidélité et l'offre nouveau client ne sont validées que quand Slice Pizza confirme la commande (tableau de bord). */
   App.onOrder = async o => {
-    try {
-      const f = await load(), d = new Date();
-      await f.addDoc(f.collection(f.db, "commandes"), { no: o.no, mode: o.client.mode, total: o.total, slices: o.slices, uid: user ? user.uid : "",
-        items: o.items.slice(0, 40).map(i => ({ id: String(i.id), name: String(i.name).slice(0, 80), qty: i.qty, price: i.price })),
-        day: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`, createdAt: f.serverTimestamp() });
-    } catch (e) { console.warn(e); }
-    if (!user) return;
+    const d = new Date(), day = dayKey(d);
+    let oid = "";
+    const { tel, ...od } = o;
+    if (user) {
+      try {
+        const f = await load();
+        const refNow = !!(profile && profile.referredBy && !profile.refDone), bonus = refNow ? REF_BONUS : 0;
+        const r = await f.addDoc(f.collection(f.db, "users", user.uid, "orders"), { ...od, status: "attente", stamp: 0, refBonus: bonus, createdAt: f.serverTimestamp() });
+        oid = (r && r.id) || "";
+        await f.setDoc(f.doc(f.db, "users", user.uid), {
+          name: o.client.name, phone: o.client.phone, address: o.client.address || "", geo: o.client.geo || "",
+          email: user.email || "", slices: f.increment(bonus), orders: f.increment(1), updatedAt: f.serverTimestamp(), ...(refNow ? { refDone: true } : {})
+        }, { merge: true });
+        if (refNow) { try { await f.setDoc(f.doc(f.db, "referrals", user.uid), { done: true }, { merge: true }); } catch (e) { console.warn(e); } App.toast("🎁 Parrainage : 1 slice cochée sur ta carte !"); }
+        profile = { ...(profile || {}), slices: ((profile && profile.slices) || 0) + bonus, orders: ((profile && profile.orders) || 0) + 1, ...(refNow ? { refDone: true } : {}) };
+        orders.unshift({ ...od, status: "attente", stamp: 0, createdAt: { toDate: () => new Date() } });
+        if (!refNow && o.slices > 0) App.toast("Commande envoyée · ta case sera cochée quand Slice Pizza confirme");
+        paintLoyalty(); renderAccount();
+      } catch (e) { console.warn(e); }
+    }
     try {
       const f = await load();
-      const refNow = !!(profile && profile.referredBy && !profile.refDone), bonus = refNow ? REF_BONUS : 0;
-      /* Carte Slice Lovers : 1 case par commande qui contient au moins 1 slice (peu importe combien), 1 case par jour maximum */
-      const dd = new Date(), day = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, "0")}-${String(dd.getDate()).padStart(2, "0")}`;
-      const stamp = o.slices > 0 && !(profile && profile.stampDay === day) ? 1 : 0;
-      await f.addDoc(f.collection(f.db, "users", user.uid, "orders"), { ...o, stamp, refBonus: bonus, createdAt: f.serverTimestamp() });
-      await f.setDoc(f.doc(f.db, "users", user.uid), {
-        name: o.client.name, phone: o.client.phone, address: o.client.address || "", geo: o.client.geo || "",
-        email: user.email || "", slices: f.increment(stamp + bonus), ...(stamp ? { stampDay: day } : {}), orders: f.increment(1), updatedAt: f.serverTimestamp(), ...(refNow ? { refDone: true } : {})
-      }, { merge: true });
-      if (refNow) { try { await f.setDoc(f.doc(f.db, "referrals", user.uid), { done: true }, { merge: true }); } catch (e) { console.warn(e); } App.toast("🎁 Parrainage : 1 slice cochée sur ta carte !"); }
-      profile = { ...(profile || {}), slices: ((profile && profile.slices) || 0) + stamp + bonus, ...(stamp ? { stampDay: day } : {}), orders: ((profile && profile.orders) || 0) + 1, ...(refNow ? { refDone: true } : {}) };
-      orders.unshift({ ...o, stamp, createdAt: { toDate: () => new Date() } });
-      if (!refNow && o.slices > 0) App.toast(stamp ? "⭐ 1 case cochée sur ta carte Slice Lovers" : "Commande envoyée · ta case du jour est déjà cochée");
-      paintLoyalty(); renderAccount();
+      await f.addDoc(f.collection(f.db, "commandes"), { no: o.no, mode: o.client.mode, total: o.total, slices: o.slices, uid: user ? user.uid : "",
+        items: o.items.slice(0, 40).map(i => ({ id: String(i.id), name: String(i.name).slice(0, 80), qty: i.qty, price: i.price })),
+        day, status: "attente", tel: tel ? await telKey(tel) : "", disc: +o.disc || 0, oid, createdAt: f.serverTimestamp() });
     } catch (e) { console.warn(e); }
   };
 
@@ -2009,7 +2011,7 @@ const CONFIG = {
         <div class="acc-pts__top"><span class="display">${cur}/${n}</span><span>cases vers ta prochaine <b>${esc(CONFIG.loyalty.reward || "slice offerte")}</b></span></div>
         <div class="acc-stamps">${Array.from({ length: n }, (_, i) => `<i class="${i < cur ? "on" : ""}"></i>`).join("")}</div>
         <p class="acc-small">${cur === 0 && have === 0 ? "Ta première commande coche ta première case !" : `Encore <b>${n - cur}</b> commande${n - cur > 1 ? "s" : ""} avant ta récompense.`}</p>
-        <p class="acc-small">1 case par commande avec au moins 1 slice, 1 case par jour maximum.</p>
+        <p class="acc-small">1 case par commande avec au moins 1 slice, 1 case par jour maximum. La case est cochée quand Slice Pizza confirme ta commande.</p>
         ${avail ? `<p class="acc-gift">🎉 <b>${avail} slice${avail > 1 ? "s" : ""} offerte${avail > 1 ? "s" : ""}</b> à récupérer : montre cet écran en boutique ou dis-le dans ta commande.</p>` : ""}
       </section>
       ${isAdmin ? `<button type="button" class="btn sm acc-admin" data-admin-open>📊 Tableau de bord Slice Pizza</button>` : ""}
@@ -2024,7 +2026,7 @@ const CONFIG = {
       ${orders.length ? `<p class="acc-small">${orders.length} commande${orders.length > 1 ? "s" : ""} depuis ${esc(fmtDate(orders[orders.length - 1]) || "ton inscription")}${orders.length > 1 ? ` · ${orders.reduce((t, o) => t + (+o.total || 0), 0).toLocaleString("fr-MA")} DH au total` : ""}</p>
         <ul class="acc-orders">${orders.slice(0, histAll ? orders.length : 10).map((o, k) => `<li>
           <div class="acc-orders__top"><b>${fmtDate(o)}${o.no ? ` <small>${esc(o.no)}</small>` : ""}</b><span>${esc(o.client && o.client.mode || "")}</span><b>${o.total != null ? o.total + " DH" : ""}</b></div>
-          <p>${(o.items || []).map(i => `${i.qty} × ${esc(i.name)}`).join(", ")}${o.disc ? ` <small class="acc-tag">-${o.disc} DH nouveau client</small>` : ""}${o.stamp === 1 ? ` <small class="acc-tag">⭐ case cochée</small>` : ""}</p>
+          <p>${(o.items || []).map(i => `${i.qty} × ${esc(i.name)}`).join(", ")}${o.disc ? ` <small class="acc-tag">-${o.disc} DH nouveau client</small>` : ""}${o.status === "attente" ? ` <small class="acc-tag">⏳ En attente de confirmation</small>` : o.status === "annulee" ? ` <small class="acc-tag">❌ Annulée</small>` : o.stamp === 1 ? ` <small class="acc-tag">⭐ case cochée</small>` : ""}</p>
           <button type="button" class="btn sm" data-reorder="${k}">🔁 Recommander</button>
         </li>`).join("")}</ul>${!histAll && orders.length > 10 ? `<button type="button" class="btn ghost sm" style="width:100%;margin-top:.6rem" data-hist-all>Voir tout l'historique (${orders.length})</button>` : ""}` : `<p class="note">Pas encore de commande. Une slice ? 🍕</p>`}
 
@@ -2147,8 +2149,9 @@ const CONFIG = {
   function renderAdmin() {
     const box = $("[data-admin-body]"); if (!box) return;
     if (!isAdmin) { box.innerHTML = `<p>Accès réservé.</p>`; return; }
-    const tabs = `<div class="adm-tabs">${[["stats", "📊 Stats & clients"], ["dispo", "✅ Disponibilité"]].map(([k, l]) => `<button type="button" data-adm-view="${k}" aria-pressed="${admView === k}">${l}</button>`).join("")}</div>`;
+    const tabs = `<div class="adm-tabs">${[["cmd", `🧾 À confirmer${pend.length ? ` (${pend.length})` : ""}`], ["stats", "📊 Stats & clients"], ["dispo", "✅ Disponibilité"]].map(([k, l]) => `<button type="button" data-adm-view="${k}" aria-pressed="${admView === k}">${l}</button>`).join("")}</div>`;
     if (admView === "dispo") { box.innerHTML = tabs + dispoBlock(); return; }
+    if (admView === "cmd") { box.innerHTML = tabs + pendBlock(); return; }
     const q = adminQ.toLowerCase().replace(/\s/g, "");
     const list = adminUsers.filter(u => !q || [u.name, u.phone, u.email].some(v => String(v || "").toLowerCase().replace(/\s/g, "").includes(q)));
     const tot = adminUsers.reduce((t, u) => { const r = rewards(u); t.o += u.orders || 0; t.s += r.have; t.a += r.avail; t.r += u.refDone ? 1 : 0; return t; }, { o: 0, s: 0, a: 0, r: 0 });
@@ -2177,20 +2180,60 @@ const CONFIG = {
         </div><div data-adm-o="${esc(u.uid)}"></div></li>`; }).join("")}</ul>` : `<p class="note">${adminUsers.length ? "Aucun client trouvé." : "Pas encore de client inscrit."}</p>`}`;
   }
   const ms = t => t && t.toMillis ? t.toMillis() : 0;
-  const dayKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const dh = n => `${Math.round(n).toLocaleString("fr-MA")} DH`;
+  function pendBlock() {
+    const hm = t => t && t.toDate ? t.toDate().toLocaleString("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "";
+    return `<h4 class="adm-h">Commandes à confirmer</h4>
+      <p class="note">Confirme seulement les commandes <b>reçues sur WhatsApp</b> (même n° SP). C'est à ce moment que la case fidélité est cochée et que le numéro perd l'offre nouveau client. Si le message n'est jamais arrivé, appuie sur « Pas reçue ».</p>
+      ${pend.length ? `<ul class="adm-list">${pend.map(c => `<li>
+        <div class="adm-row"><span><b>${esc(c.no || "")}</b><small>${esc(c.mode || "")} · ${hm(c.createdAt)}${c.uid ? " · compte client" : ""}${c.disc ? ` · 🆕 -${c.disc} DH nouveau client` : ""}</small></span><span class="adm-pts"><b>${c.total != null ? dh(c.total) : ""}</b></span></div>
+        <small class="adm-addr">${(c.items || []).map(i => `${i.qty} × ${esc(i.name)}`).join(", ")}</small>
+        <div class="adm-acts">${pendBusy[c.id] ? `<small>…</small>` : `<button type="button" class="btn sm" data-cmd-ok="${esc(c.id)}">✅ Confirmer</button><button type="button" class="linkbtn" data-cmd-no="${esc(c.id)}">Pas reçue</button>`}</div></li>`).join("")}</ul>`
+      : `<p class="note">Aucune commande en attente. 👌</p>`}`;
+  }
+  function startPending(f) {
+    if (pendOff) return;
+    pendOff = f.onSnapshot(f.query(f.collection(f.db, "commandes"), f.where("status", "==", "attente")), s => {
+      pend = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(b.createdAt) - ms(a.createdAt));
+      if (isAdmin) renderAdmin();
+    }, e => console.warn(e));
+  }
+  async function confirmCmd(id, ok) {
+    const c = pend.find(x => x.id === id); if (!c || pendBusy[id]) return;
+    pendBusy[id] = true; renderAdmin();
+    try {
+      const f = await load();
+      if (ok) {
+        if (c.tel) { const r = f.doc(f.db, "clients", c.tel); if (!(await f.getDoc(r)).exists()) await f.setDoc(r, { at: f.serverTimestamp() }); }
+        let stamp = 0;
+        if (c.uid) {
+          const u = (await f.getDoc(f.doc(f.db, "users", c.uid))).data() || {};
+          stamp = c.slices > 0 && u.stampDay !== c.day ? 1 : 0;   // 1 case par commande avec slice, 1 par jour
+          if (stamp) await f.setDoc(f.doc(f.db, "users", c.uid), { slices: f.increment(1), stampDay: c.day, updatedAt: f.serverTimestamp() }, { merge: true });
+          if (c.oid) await f.setDoc(f.doc(f.db, "users", c.uid, "orders", c.oid), { status: "ok", stamp }, { merge: true });
+        }
+        App.toast(`${c.no} confirmée${stamp ? " · case cochée" : ""}`);
+      } else if (c.uid && c.oid) await f.setDoc(f.doc(f.db, "users", c.uid, "orders", c.oid), { status: "annulee" }, { merge: true });
+      await f.setDoc(f.doc(f.db, "commandes", id), { status: ok ? "ok" : "annulee" }, { merge: true });
+    } catch (e) { App.toast("Impossible (" + (e.code || "erreur") + ")"); }
+    delete pendBusy[id]; renderAdmin();
+  }
+  document.addEventListener("click", e => {
+    const a = e.target.closest("[data-cmd-ok],[data-cmd-no]"); if (!a) return;
+    confirmCmd(a.dataset.cmdOk || a.dataset.cmdNo, a.dataset.cmdOk !== undefined);
+  });
   function statsBlock() {
     if (adminCmd === null) return `<h4 class="adm-h">Statistiques</h4><p class="note">Statistiques indisponibles : publie les nouvelles règles Firestore (fichier regles-firestore.txt).</p>`;
     const now = new Date(), t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const from = admPer === 1 ? t0 : t0 - (admPer - 1) * 864e5;
-    const cmd = adminCmd.filter(o => ms(o.createdAt) >= from || (!o.createdAt && admPer));
+    const cmd = adminCmd.filter(o => o.status !== "annulee" && (ms(o.createdAt) >= from || (!o.createdAt && admPer)));
     const ca = cmd.reduce((t, o) => t + (+o.total || 0), 0), avg = cmd.length ? ca / cmd.length : 0;
     const modes = {}; cmd.forEach(o => modes[o.mode || "?"] = (modes[o.mode || "?"] || 0) + 1);
     const prods = {}; cmd.forEach(o => (o.items || []).forEach(i => { const k = String(i.name || i.id).replace(/ \(.*\)$/, ""); prods[k] = prods[k] || { q: 0, ca: 0 }; prods[k].q += i.qty || 0; prods[k].ca += (i.price || 0) * (i.qty || 0); }));
     const top = Object.entries(prods).sort((a, b) => b[1].q - a[1].q).slice(0, 8);
     const newC = adminUsers.filter(u => ms(u.createdAt) >= from).length;
     const viaApp = cmd.filter(o => o.uid).length;
-    const days = [...Array(7)].map((_, k) => { const d = new Date(t0 - (6 - k) * 864e5); const key = dayKey(d); const l = adminCmd.filter(o => o.day === key);
+    const days = [...Array(7)].map((_, k) => { const d = new Date(t0 - (6 - k) * 864e5); const key = dayKey(d); const l = adminCmd.filter(o => o.day === key && o.status !== "annulee");
       return { lab: d.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", ""), n: l.length, ca: l.reduce((t, o) => t + (+o.total || 0), 0) }; });
     const mx = Math.max(1, ...days.map(d => d.n));
     return `<h4 class="adm-h">Statistiques</h4>
@@ -2239,6 +2282,7 @@ const CONFIG = {
     f.onAuthStateChanged(f.auth, async u => {
       const wasOut = ready && !user;
       user = u; profile = null; orders = []; ready = true; isAdmin = false;
+      if (pendOff) { pendOff(); pendOff = null; pend = []; }
       $$("[data-account]").forEach(b => { b.classList.toggle("on", !!u); b.title = u ? (u.displayName || "Mon compte") : "Se connecter"; });
       renderAccount();
       if (u) {
@@ -2250,6 +2294,7 @@ const CONFIG = {
         const c = App.getClient();
         App.setClient({ name: c.name || profile.name || u.displayName || "", phone: c.phone || profile.phone || "", address: c.address || profile.address || "", geo: c.geo || profile.geo || "" });
         try { isAdmin = (await f.getDoc(f.doc(f.db, "admins", u.uid))).exists(); } catch (err) { isAdmin = false; }
+        if (isAdmin) startPending(f);
         await ensureCode(f); await creditReferrer(f);
         if (wasOut) { App.toast(`Bienvenue ${(u.displayName || "").split(" ")[0]} 👋`); }
         await loadOrders();
@@ -2396,7 +2441,9 @@ const CONFIG = {
     "1 case par commande avec au moins 1 slice, 1 case par jour maximum.": "خانة وحدة ف كل كوموند فيها سلايس، خانة وحدة ف النهار ماكسيموم.",
     "1 case par commande, 1 case par jour maximum.": "خانة وحدة ف كل كوموند، خانة وحدة ف النهار ماكسيموم.", "cases vers ta prochaine": "خانات باش توصل لـ", "cases": "خانات",
     "commandes avant ta récompense.": "كوموندات وتربح الكادو ديالك.", "commande avant ta récompense.": "كوموند وتربح الكادو ديالك.",
-    "Ta première commande coche ta première case !": "أول كوموند كتشيكي أول خانة!", "⭐ case cochée": "⭐ خانة مشيكية",
+    "Ta première commande coche ta première case !": "أول كوموند كتشيكي أول خانة!",
+    "⏳ En attente de confirmation": "⏳ كتسنا التأكيد", "❌ Annulée": "❌ ملغية", "Commande envoyée · ta case sera cochée quand Slice Pizza confirme": "الكوموند تصيفطات · الخانة غادي تتشيكا ملي Slice Pizza تأكد",
+    "1 case par commande avec au moins 1 slice, 1 case par jour maximum. La case est cochée quand Slice Pizza confirme ta commande.": "خانة وحدة ف كل كوموند فيها سلايس، خانة وحدة ف النهار ماكسيموم. الخانة كتتشيكا ملي Slice Pizza تأكد الكوموند ديالك.", "⭐ case cochée": "⭐ خانة مشيكية",
     "⭐ 1 case cochée sur ta carte Slice Lovers": "⭐ تشيكات خانة ف الكارطة ديالك", "Commande envoyée · ta case du jour est déjà cochée": "الكوموند تصيفطات · الخانة ديال اليوم مشيكية من قبل", "1 slice offerte": "سلايس فابور",
     "Sur Insta": "ف إنستا", "Follow": "Follow", "the Slice": "the Slice", "Follow us": "تبعنا",
     /* ---- infos ---- */
