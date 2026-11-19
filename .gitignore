@@ -1,2 +1,6 @@
 .DS_Store
 __pycache__/
+
+# captures de test
+/t*.png
+/source/t*.png
