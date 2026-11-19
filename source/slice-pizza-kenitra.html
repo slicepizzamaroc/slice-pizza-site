@@ -433,6 +433,8 @@ section{position:relative;scroll-margin-top:80px}
 .acc-orders__top{display:flex;gap:.6rem;align-items:baseline}
 .acc-orders__top span{flex:1;color:#555;font-size:.9rem}
 .acc-orders p{margin:.3rem 0 .6rem;color:#444;font-size:.92rem}
+.acc-orders__top small{font:600 .72rem/1 var(--body,inherit);color:#888;margin-left:.3rem}
+.acc-tag{display:inline-block;background:#fff4d6;border-radius:99px;padding:.1rem .5rem;font-size:.75rem;font-weight:700;color:#333;margin-left:.2rem}
 .acc-out{margin-top:1rem;--fg:var(--black);box-shadow:inset 0 0 0 2.5px var(--black)}
 .acc-geo{display:grid;gap:.35rem;padding:.7rem;border-radius:12px;background:#fff;border:2px dashed #cfcfcf}
 .acc-geo a{color:var(--black);font-weight:700}
@@ -844,7 +846,7 @@ html[dir="rtl"] .otimer{padding:.8rem 1rem .8rem 2.6rem}html[dir="rtl"] .otimer 
         <li><a href="#lovers">Slice Lovers</a></li>
       </ul></div>
     </div>
-    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v44</span></div>
+    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v45</span></div>
   </div>
 </footer>
 
@@ -1384,7 +1386,7 @@ const CONFIG = {
   const n = has(C.loyalty.stamps) ? Math.max(2, Math.min(15, +C.loyalty.stamps)) : 10;
   $("[data-stamps]").innerHTML = Array.from({ length: n }, (_, i) => `<i class="${i < 3 ? "on" : ""}"></i>`).join("");
   $("[data-loyalty-rule]").innerHTML = has(C.loyalty.stamps) && has(C.loyalty.reward)
-    ? `${C.loyalty.stamps} slices collectionnées = ${esc(C.loyalty.reward)}.`
+    ? `${C.loyalty.stamps} commandes = ${esc(C.loyalty.reward)}. 1 case par commande, 1 case par jour maximum.`
     : (C.draft ? `Règle du programme ${TODO} (nombre de slices + récompense).` : "Programme bientôt disponible. Reste branché.");
   $("[data-perks]").innerHTML = C.loyalty.perks.map(p => `<li><span>${p.icon}</span>${esc(p.text)}</li>`).join("");
 
@@ -1851,7 +1853,7 @@ const CONFIG = {
     if (!user) return (orders = []);
     try {
       const f = await load();
-      const q = f.query(f.collection(f.db, "users", user.uid, "orders"), f.orderBy("createdAt", "desc"), f.limit(20));
+      const q = f.query(f.collection(f.db, "users", user.uid, "orders"), f.orderBy("createdAt", "desc"));
       orders = (await f.getDocs(q)).docs.map(d => d.data());
     } catch (e) { console.warn(e); orders = []; }
     return orders;
@@ -1886,14 +1888,18 @@ const CONFIG = {
     try {
       const f = await load();
       const refNow = !!(profile && profile.referredBy && !profile.refDone), bonus = refNow ? REF_BONUS : 0;
-      await f.addDoc(f.collection(f.db, "users", user.uid, "orders"), { ...o, refBonus: bonus, createdAt: f.serverTimestamp() });
+      /* Carte Slice Lovers : 1 case par commande (peu importe le nombre de slices), 1 case par jour maximum */
+      const dd = new Date(), day = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, "0")}-${String(dd.getDate()).padStart(2, "0")}`;
+      const stamp = profile && profile.stampDay === day ? 0 : 1;
+      await f.addDoc(f.collection(f.db, "users", user.uid, "orders"), { ...o, stamp, refBonus: bonus, createdAt: f.serverTimestamp() });
       await f.setDoc(f.doc(f.db, "users", user.uid), {
         name: o.client.name, phone: o.client.phone, address: o.client.address || "", geo: o.client.geo || "",
-        email: user.email || "", slices: f.increment(o.slices + bonus), orders: f.increment(1), updatedAt: f.serverTimestamp(), ...(refNow ? { refDone: true } : {})
+        email: user.email || "", slices: f.increment(stamp + bonus), stampDay: day, orders: f.increment(1), updatedAt: f.serverTimestamp(), ...(refNow ? { refDone: true } : {})
       }, { merge: true });
       if (refNow) { try { await f.setDoc(f.doc(f.db, "referrals", user.uid), { done: true }, { merge: true }); } catch (e) { console.warn(e); } App.toast("🎁 Parrainage : 1 slice cochée sur ta carte !"); }
-      profile = { ...(profile || {}), slices: ((profile && profile.slices) || 0) + o.slices + bonus, orders: ((profile && profile.orders) || 0) + 1, ...(refNow ? { refDone: true } : {}) };
-      orders.unshift({ ...o, createdAt: { toDate: () => new Date() } });
+      profile = { ...(profile || {}), slices: ((profile && profile.slices) || 0) + stamp + bonus, stampDay: day, orders: ((profile && profile.orders) || 0) + 1, ...(refNow ? { refDone: true } : {}) };
+      orders.unshift({ ...o, stamp, createdAt: { toDate: () => new Date() } });
+      if (!refNow) App.toast(stamp ? "⭐ 1 case cochée sur ta carte Slice Lovers" : "Commande envoyée · ta case du jour est déjà cochée");
       paintLoyalty(); renderAccount();
     } catch (e) { console.warn(e); }
   };
@@ -1903,7 +1909,7 @@ const CONFIG = {
     const n = N(), have = (profile && profile.slices) || 0, cur = have % n;
     if (user) $$("[data-stamps] i").forEach((i, k) => i.classList.toggle("on", k < cur));
     const r = $("[data-loyalty-me]");
-    if (r) r.innerHTML = user ? `<b>${esc((user.displayName || "").split(" ")[0] || "Toi")}</b> : ${cur}/${n} slices${have >= n ? ` · ${Math.floor(have / n)} récompense(s) gagnée(s)` : ""}` : "";
+    if (r) r.innerHTML = user ? `<b>${esc((user.displayName || "").split(" ")[0] || "Toi")}</b> : ${cur}/${n} cases${have >= n ? ` · ${Math.floor(have / n)} récompense(s) gagnée(s)` : ""}` : "";
   }
 
   const today = () => { const d = new Date(); return { md: `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`, y: String(d.getFullYear()) }; };
@@ -1982,6 +1988,8 @@ const CONFIG = {
   }
   new MutationObserver(() => paintFavs()).observe(document.body, { childList: true, subtree: true });
 
+  let histAll = false;
+  document.addEventListener("click", e => { if (e.target.closest("[data-hist-all]")) { histAll = true; renderAccount(); } });
   const fmtDate = o => o.createdAt && o.createdAt.toDate ? o.createdAt.toDate().toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "";
 
   function renderAccount() {
@@ -1989,7 +1997,7 @@ const CONFIG = {
     if (!ready) { box.innerHTML = `<p class="note">Chargement…</p>`; return; }
     if (!user) {
       box.innerHTML = `<p>Connecte-toi pour retrouver tes infos, tes commandes et tes points Slice Lovers.</p>
-        <ul class="acc-perks"><li>⭐ ${N()} slices achetées = 1 slice offerte</li><li>📦 Historique de tes commandes</li><li>🎁 Parraine tes amis : 1 slice cochée chacun</li><li>🔁 Recommande en 1 clic</li><li>📍 Adresse et téléphone gardés</li></ul>${App.authSlot()}`;
+        <ul class="acc-perks"><li>⭐ ${N()} commandes = 1 slice offerte</li><li>📦 Historique de tes commandes</li><li>🎁 Parraine tes amis : 1 slice cochée chacun</li><li>🔁 Recommande en 1 clic</li><li>📍 Adresse et téléphone gardés</li></ul>${App.authSlot()}`;
       return;
     }
     const { n, have, cur, won, avail } = rewards(profile);
@@ -1998,25 +2006,27 @@ const CONFIG = {
       <div class="auth-on">${avatar()}<span><b>${esc(user.displayName || "")}</b><br><small>${esc(user.email || "")}</small></span></div>
 
       <section class="acc-card acc-loyal">
-        <div class="acc-pts__top"><span class="display">${cur}/${n}</span><span>slices vers ta prochaine <b>${esc(CONFIG.loyalty.reward || "slice offerte")}</b></span></div>
+        <div class="acc-pts__top"><span class="display">${cur}/${n}</span><span>cases vers ta prochaine <b>${esc(CONFIG.loyalty.reward || "slice offerte")}</b></span></div>
         <div class="acc-stamps">${Array.from({ length: n }, (_, i) => `<i class="${i < cur ? "on" : ""}"></i>`).join("")}</div>
-        <p class="acc-small">${cur === 0 && have === 0 ? "Ta première slice commence ta carte !" : `Encore <b>${n - cur}</b> slice${n - cur > 1 ? "s" : ""} avant ta récompense.`}</p>
+        <p class="acc-small">${cur === 0 && have === 0 ? "Ta première commande coche ta première case !" : `Encore <b>${n - cur}</b> commande${n - cur > 1 ? "s" : ""} avant ta récompense.`}</p>
+        <p class="acc-small">1 case par commande, 1 case par jour maximum.</p>
         ${avail ? `<p class="acc-gift">🎉 <b>${avail} slice${avail > 1 ? "s" : ""} offerte${avail > 1 ? "s" : ""}</b> à récupérer : montre cet écran en boutique ou dis-le dans ta commande.</p>` : ""}
       </section>
       ${isAdmin ? `<button type="button" class="btn sm acc-admin" data-admin-open>📊 Tableau de bord Slice Pizza</button>` : ""}
 
       <div class="acc-stats">
         <div><b class="display">${(profile && profile.orders) || orders.length}</b><span>commandes</span></div>
-        <div><b class="display">${have}</b><span>slices</span></div>
+        <div><b class="display">${have}</b><span>cases</span></div>
         <div><b class="display">${avail}</b><span>à récupérer</span></div>
       </div>
 
       <h4 class="acc-h display">Mes commandes</h4>
-      ${orders.length ? `<ul class="acc-orders">${orders.map((o, k) => `<li>
-          <div class="acc-orders__top"><b>${fmtDate(o)}</b><span>${esc(o.client && o.client.mode || "")}</span><b>${o.total != null ? o.total + " DH" : ""}</b></div>
-          <p>${(o.items || []).map(i => `${i.qty} × ${esc(i.name)}`).join(", ")}</p>
+      ${orders.length ? `<p class="acc-small">${orders.length} commande${orders.length > 1 ? "s" : ""} depuis ${esc(fmtDate(orders[orders.length - 1]) || "ton inscription")}${orders.length > 1 ? ` · ${orders.reduce((t, o) => t + (+o.total || 0), 0).toLocaleString("fr-MA")} DH au total` : ""}</p>
+        <ul class="acc-orders">${orders.slice(0, histAll ? orders.length : 10).map((o, k) => `<li>
+          <div class="acc-orders__top"><b>${fmtDate(o)}${o.no ? ` <small>${esc(o.no)}</small>` : ""}</b><span>${esc(o.client && o.client.mode || "")}</span><b>${o.total != null ? o.total + " DH" : ""}</b></div>
+          <p>${(o.items || []).map(i => `${i.qty} × ${esc(i.name)}`).join(", ")}${o.disc ? ` <small class="acc-tag">-${o.disc} DH nouveau client</small>` : ""}${o.stamp === 1 ? ` <small class="acc-tag">⭐ case cochée</small>` : ""}</p>
           <button type="button" class="btn sm" data-reorder="${k}">🔁 Recommander</button>
-        </li>`).join("")}</ul>` : `<p class="note">Pas encore de commande. Une slice ? 🍕</p>`}
+        </li>`).join("")}</ul>${!histAll && orders.length > 10 ? `<button type="button" class="btn ghost sm" style="width:100%;margin-top:.6rem" data-hist-all>Voir tout l'historique (${orders.length})</button>` : ""}` : `<p class="note">Pas encore de commande. Une slice ? 🍕</p>`}
 
       ${refBlock()}
 
@@ -2159,7 +2169,7 @@ const CONFIG = {
       <div class="adm-tools"><input type="search" data-adm-q placeholder="Chercher un nom ou un téléphone…" value="${esc(adminQ)}"><button type="button" class="linkbtn" data-adm-refresh>↻ Actualiser</button></div>
       ${list.length ? `<ul class="adm-list">${list.map(u => { const r = rewards(u); return `<li>
         <div class="adm-row"><span><b>${esc(u.name || "Sans nom")}</b><small>${u.phone ? `<a href="tel:${esc(u.phone)}">${esc(u.phone)}</a>` : "pas de téléphone"} · ${u.orders || 0} cmd · ${when(u)}${u.refCount ? ` · 👥 ${u.refCount} filleul${u.refCount > 1 ? "s" : ""}` : ""}${u.refCode ? ` · parrainé (${esc(u.refCode)})` : ""}</small></span>
-          <span class="adm-pts"><b>${r.cur}/${r.n}</b><small>${r.have} slices</small></span></div>
+          <span class="adm-pts"><b>${r.cur}/${r.n}</b><small>${r.have} cases</small></span></div>
         ${u.address || u.geo ? `<small class="adm-addr">${esc(u.address || "")}${u.geo ? ` · <a href="${esc(u.geo)}" target="_blank" rel="noopener">📍 carte</a>` : ""}</small>` : ""}
         <div class="adm-acts">
           ${r.avail ? `<button type="button" class="btn sm" data-adm-redeem="${esc(u.uid)}">🍕 Donner 1 slice offerte (${r.avail})</button>` : ""}
@@ -2382,7 +2392,11 @@ const CONFIG = {
     "Chaque commande te rapproche d'une récompense. Plus tu reviens, plus Slice Pizza te le rend.": "كل كوموند كتقربك من كادو. كل ما رجعتي، Slice Pizza كترد ليك الخير.",
     "Rejoindre les Slice Lovers": "دخل مع Slice Lovers", "📲 Installer l'app": "📲 تيليشارجي الأبليكاسيون",
     "Points à chaque commande": "نقط ف كل كوموند", "Récompenses": "كادوات", "Challenges": "تحديات", "Offres exclusives": "عروض خاصة بيك",
-    "10 slices collectionnées = 1 slice offerte.": "10 سلايسات = سلايس فابور.", "1 slice offerte": "سلايس فابور",
+    "10 commandes = 1 slice offerte. 1 case par commande, 1 case par jour maximum.": "10 كوموندات = سلايس فابور. خانة وحدة ف كل كوموند، خانة وحدة ف النهار ماكسيموم.",
+    "1 case par commande, 1 case par jour maximum.": "خانة وحدة ف كل كوموند، خانة وحدة ف النهار ماكسيموم.", "cases vers ta prochaine": "خانات باش توصل لـ", "cases": "خانات",
+    "commandes avant ta récompense.": "كوموندات وتربح الكادو ديالك.", "commande avant ta récompense.": "كوموند وتربح الكادو ديالك.",
+    "Ta première commande coche ta première case !": "أول كوموند كتشيكي أول خانة!", "⭐ case cochée": "⭐ خانة مشيكية",
+    "⭐ 1 case cochée sur ta carte Slice Lovers": "⭐ تشيكات خانة ف الكارطة ديالك", "Commande envoyée · ta case du jour est déjà cochée": "الكوموند تصيفطات · الخانة ديال اليوم مشيكية من قبل", "1 slice offerte": "سلايس فابور",
     "Sur Insta": "ف إنستا", "Follow": "Follow", "the Slice": "the Slice", "Follow us": "تبعنا",
     /* ---- infos ---- */
     "Passe nous voir": "دوز عندنا", "On est où ?": "فين حنا؟", "Adresse": "العنوان", "Sur place et sur Glovo": "ف البلاصة و على Glovo",
@@ -2511,7 +2525,10 @@ const CONFIG = {
     [/^👥 (\d+) amis? parrainés? · \+(\d+) slices? cochées?$/, (m, a, b) => `👥 ${a} صحاب جبتيهم · +${b} سلايس مشيكية`],
     [/^🎁 (\d+) clients? venus? par parrainage$/, (m, a) => `🎁 ${a} كليان جاو بالكود`],
     [/^🍕 Donner 1 slice offerte \((\d+)\)$/, (m, a) => `🍕 عطي سلايس فابور (${a})`],
-    [/^⭐ (\d+) slices achetées = 1 slice offerte$/, (m, a) => `⭐ ${a} سلايسات = سلايس فابور`],
+    [/^⭐ (\d+) commandes = 1 slice offerte$/, (m, a) => `⭐ ${a} كوموندات = سلايس فابور`],
+    [/^(\d+) commandes? depuis (.+?)(?: · ([\d\s ]+) DH au total)?$/, (m, a, b, c) => `${a} كوموند من ${b}${c ? ` · ${c} درهم ف المجموع` : ""}`],
+    [/^Voir tout l'historique \((\d+)\)$/, (m, a) => `شوف كاع الكوموندات (${a})`],
+    [/^-(\d+) DH nouveau client$/, (m, a) => `-${a} درهم كليان جديد`],
     [/^(.+) ajouté au panier ✓$/, (m, a) => `${a} تزاد للسلة ✓`],
     [/^Confirmer : 1 slice offerte donnée à (.+) \?$/, (m, a) => `أكد: عطيتي سلايس فابور ل ${a}؟`],
     [/^\((.+)\)$/, m => m],
