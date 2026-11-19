@@ -521,6 +521,12 @@ html[lang="ar"] .fav{right:auto;left:10px}
 .qty button{width:36px;height:36px;border-radius:8px;border:2px solid var(--black);background:#fff;font-weight:800}
 .qty span{min-width:22px;text-align:center;font-weight:800}
 .total{display:flex;justify-content:space-between;font:400 1.6rem/1 var(--display);margin:1rem 0}
+.total.sub{font-size:1.15rem;margin:.6rem 0 .3rem;color:#555}
+.fo-promo{display:flex;justify-content:space-between;gap:.6rem;align-items:center;background:#e9f9ee;border:2px solid #1f9d55;border-radius:12px;padding:.55rem .75rem;font-weight:800;font-size:.9rem;margin:.3rem 0}
+.fo-promo b{white-space:nowrap;color:#1f9d55}
+.fo-promo.hint{background:#fff4d6;border:2px dashed var(--black)}
+.adm-tel{display:flex;flex-wrap:wrap;gap:.4rem 1rem;align-items:center;margin:.4rem 0}.adm-tel input{flex:1 1 100%;font:inherit;padding:.6rem .8rem;border:2px solid #ccc;border-radius:10px}
+.fo-promo.muted{background:#f2f2f2;border-color:#ccc;font-weight:600;color:#555}
 .minorder{background:#fff4d6;border:2px dashed var(--black);border-radius:12px;padding:.7rem .8rem;font-weight:800;font-size:.9rem;margin:0 0 .8rem}
 .minorder i{display:block;height:8px;border-radius:99px;background:#e6e6e6;margin-top:.5rem;overflow:hidden}
 .minorder i b{display:block;height:100%;background:var(--red)}
@@ -838,7 +844,7 @@ html[dir="rtl"] .otimer{padding:.8rem 1rem .8rem 2.6rem}html[dir="rtl"] .otimer 
         <li><a href="#lovers">Slice Lovers</a></li>
       </ul></div>
     </div>
-    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v42</span></div>
+    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v43</span></div>
   </div>
 </footer>
 
@@ -993,6 +999,8 @@ const CONFIG = {
     direct: "",                         // lien de commande en ligne directe si un jour vous en avez un
     minOrder: 100,                      // minimum de commande en DH (0 = pas de minimum)
     minOrderModes: ["Livraison"],       // modes concernés par le minimum (à emporter / sur place : pas de minimum)
+    // Offre nouveau client : remise sur la 1re commande, reconnue par le numéro de téléphone (pas l'email)
+    firstOrder: { percent: 10, until: "" },   // percent 0 = offre coupée ; until "2026-12-05" = dernier jour (vide = pas de date de fin)
     // Minuteur affiché au client après l'envoi (en minutes, estimation) : À CONFIRMER par Simo
     prepMinutes: { "Livraison": [15, 30], "À emporter": 20, "Sur place": 20 }   // [min, max] = fourchette
   },
@@ -1487,6 +1495,37 @@ const CONFIG = {
   try { Object.assign(client, JSON.parse(localStorage.getItem("slice-client") || "{}")); } catch (e) {}
   const saveClient = () => { try { localStorage.setItem("slice-client", JSON.stringify(client)); } catch (e) {} };
   const phoneOk = v => /^(?:\+?212|0)[5-7]\d{8}$/.test(v.replace(/[\s.\-]/g, ""));
+  /* ---------- Offre nouveau client (-X % sur la 1re commande, par numéro de téléphone) ---------- */
+  const FO = O.firstOrder || {}, FOP = +(FO.percent || 0);
+  const foOn = () => FOP > 0 && (!FO.until || new Date() <= new Date(FO.until + "T23:59:59"));
+  const normTel = v => { let d = String(v || "").replace(/\D/g, ""); if (d.startsWith("212")) d = d.slice(3); if (d.startsWith("0")) d = d.slice(1); return d; };
+  let telsSeen = []; try { telsSeen = JSON.parse(localStorage.getItem("slice-tels") || "[]"); } catch (e) {}
+  let fo = { tel: "", st: "" }, foT = null;   // st : "new" | "old" | "wait" | "?" (vérification en ligne impossible)
+  const foDisc = total => foOn() && total && (fo.st === "new" || fo.st === "?" || fo.st === "wait") && fo.tel === normTel(client.phone) ? Math.round(total * FOP / 100) : 0;
+  function foCheck() {
+    if (!foOn() || !phoneOk(client.phone)) { fo = { tel: "", st: "" }; return paintTotals(); }
+    const t = normTel(client.phone), S = window.SliceApp || {};
+    if (fo.tel === t && (fo.st === "new" || fo.st === "old")) return paintTotals();
+    if (telsSeen.includes(t) || (S.ordersCount && S.ordersCount() > 0)) { fo = { tel: t, st: "old" }; return paintTotals(); }
+    fo = { tel: t, st: "wait" }; paintTotals();
+    (S.telSeen ? S.telSeen(t) : Promise.reject(new Error("off")))
+      .then(seen => { if (fo.tel === t) { fo.st = seen ? "old" : "new"; paintTotals(); } })
+      .catch(() => { if (fo.tel === t) { fo.st = "?"; paintTotals(); } });
+  }
+  function paintTotals() {
+    const box = $("[data-totals]"); if (!box) return;
+    const ids = Object.keys(cart), priced = ids.length && ids.every(id => has(find(id).price));
+    const total = priced ? ids.reduce((s, id) => s + find(id).price * cart[id], 0) : null;
+    if (total === null) { box.innerHTML = ""; return; }
+    const d = foDisc(total), fmt = n => n.toLocaleString("fr-MA");
+    let h = d ? `<div class="total sub"><span>Sous-total</span><span>${fmt(total)} DH</span></div>
+      <div class="fo-promo"><span>🎁 Nouveau client : -${FOP} % sur ta 1re commande</span><b>-${fmt(d)} DH</b></div>
+      <div class="total"><span>À payer</span><span>${fmt(total - d)} DH</span></div>`
+      : `<div class="total"><span>Total estimé</span><span>${fmt(total)} DH</span></div>`;
+    if (foOn() && !fo.st && has(O.whatsapp)) h += `<div class="fo-promo hint"><span>🎁 -${FOP} % sur ta 1re commande : entre ton numéro de téléphone pour en profiter</span></div>`;
+    if (foOn() && fo.st === "old") h += `<p class="note">L'offre -${FOP} % est réservée à la 1re commande : ce numéro a déjà commandé chez nous.</p>`;
+    box.innerHTML = h;
+  }
   function clientForm() {
     const liv = client.mode === "Livraison";
     return `<div class="cform" data-cform>
@@ -1520,21 +1559,29 @@ const CONFIG = {
     const priced = ids.every(id => has(find(id).price));
     const total = priced ? ids.reduce((s, id) => s + find(id).price * cart[id], 0) : null;
     const no = "SP-" + Date.now().toString(36).slice(-5).toUpperCase();
-    const msg = `Salam Slice Pizza ! 🍕 Nouvelle commande ${no} :\n` + ids.map(id => `• ${cart[id]} × ${label(find(id))}`).join("\n")
-      + (total !== null ? `\nTotal estimé : ${total} DH` : "")
+    const disc = foDisc(total), tel = normTel(client.phone);
+    const msg = `Salam Slice Pizza ! 🍕 Nouvelle commande ${no} :\n`
+      + (disc ? `🆕 NOUVEAU CLIENT · 1re commande : -${FOP} % appliqué${fo.st === "new" ? "" : " (numéro non vérifié en ligne)"}\n` : "")
+      + ids.map(id => `• ${cart[id]} × ${label(find(id))}`).join("\n")
+      + (total !== null ? (disc ? `\nSous-total : ${total} DH\nRemise nouveau client -${FOP} % : -${disc} DH\nTotal à payer : ${total - disc} DH` : `\nTotal estimé : ${total} DH`) : "")
       + `\n\n👤 ${client.name.trim()}\n📞 ${client.phone.trim()}\n🛵 ${client.mode}`
       + (client.mode === "Livraison" ? (client.address.trim() ? `\n🏠 ${client.address.trim()}` : "") + (client.geo ? `\n📍 ${client.geo}` : "") : "")
-      + (client.note.trim() ? `\n📝 ${client.note.trim()}` : "") + "\n\nMerci de me confirmer la commande.";
+      + (client.note.trim() ? `\n📝 ${client.note.trim()}` : "")
+      + (disc ? `\n\n👀 Staff : remise -${FOP} % nouveau client. Si ce numéro a déjà commandé chez nous, la remise ne s'applique pas.` : "")
+      + "\n\nMerci de me confirmer la commande.";
     saveClient();
+    if (!telsSeen.includes(tel)) { telsSeen.push(tel); try { localStorage.setItem("slice-tels", JSON.stringify(telsSeen.slice(-20))); } catch (e) {} }
+    if (window.SliceApp && SliceApp.telMark) SliceApp.telMark(tel);
     const SL = { "combo-slices": 2, "combo-slice-chili": 1, "combo-slice-chili-2": 2, "combo-trio-slice": 3, "combo-slice-box": 4 };
     const slices = ids.reduce((n, id) => { const b = id.split("~")[0].split("|")[0], o = C.menu.find(x => x.id === b);
       return n + cart[id] * (SL[b] || (o && o.cat === "slices" ? 1 : 0) || (id === "menu-enfant|Slice" ? 1 : 0)); }, 0);
     const items = ids.map(id => ({ id, name: label(find(id)), qty: cart[id], price: find(id).price ?? null }));
-    if (window.SliceApp && SliceApp.onOrder) SliceApp.onOrder({ no, items, total, slices,
+    if (window.SliceApp && SliceApp.onOrder) SliceApp.onOrder({ no, items, total: total !== null ? total - disc : null, disc, slices,
       client: { name: client.name.trim(), phone: client.phone.trim(), mode: client.mode, address: client.address.trim(), geo: client.geo, note: client.note.trim() } });
     window.open(wa(msg), "_blank", "noopener");
-    if (mailTo) sendMail(mailTo, no, items, total);
+    if (mailTo) sendMail(mailTo, no, items, total !== null ? total - disc : null);
     startTimer(no, client.mode);
+    fo = { tel, st: "old" };
   }
 
   /* ---------- Récap par email (EmailJS) ---------- */
@@ -1582,6 +1629,7 @@ const CONFIG = {
   document.addEventListener("input", e => {
     const i = e.target.closest("[data-f]"); if (!i) return;
     client[i.dataset.f] = i.value; i.classList.remove("bad"); saveClient();
+    if (i.dataset.f === "phone") { clearTimeout(foT); foT = setTimeout(foCheck, 350); }
   });
   document.addEventListener("click", e => {
     const m = e.target.closest("[data-mode]");
@@ -1613,12 +1661,13 @@ const CONFIG = {
     const total = priced ? ids.reduce((s, id) => s + find(id).price * cart[id], 0) : null;
     const items = ids.map(id => `• ${cart[id]} × ${label(find(id))}`).join("\n");
     const sub0 = ids.reduce((t, id) => t + (has(find(id).price) ? find(id).price * cart[id] : 0), 0), low = minOn() && sub0 < MIN;
-    foot.innerHTML = `${total !== null ? `<div class="total"><span>Total estimé</span><span>${total.toLocaleString("fr-MA")} DH</span></div>` : ""}
+    foot.innerHTML = `<div data-totals></div>
       ${low ? `<div class="minorder">Minimum de commande : ${MIN} DH. Encore ${MIN - sub0} DH 🍕<i><b style="width:${Math.round(sub0 / MIN * 100)}%"></b></i></div>` : ""}
       ${has(O.whatsapp) ? clientForm() + `<button class="btn${low ? " dim" : ""}" style="width:100%" type="button" data-send-order>Envoyer sur WhatsApp</button>`
         : `<button class="btn" style="width:100%" type="button" data-open-order>Choisir comment commander</button>${C.draft ? `<p class="note">Ajoute le numéro WhatsApp dans CONFIG.order pour envoyer le panier en un clic ${TODO}</p>` : ""}`}
       ${MIN && O.minOrderModes && !minOn() ? `<p class="note">Pas de minimum de commande à emporter ou sur place.</p>` : ""}
       <p class="note">Slice Pizza te rappelle ou te répond sur WhatsApp pour confirmer la commande avant de la préparer. Paiement à la livraison ou sur place.</p>`;
+    foCheck();
   }
   document.addEventListener("click", e => {
     const a = e.target.closest("[data-add]");
@@ -1819,6 +1868,11 @@ const CONFIG = {
     : `<button type="button" class="gbtn" data-glogin>${gIcon}Continuer avec Google</button><p class="note" style="margin:.2rem 0 0">Connecte-toi pour gagner tes points Slice Lovers à chaque commande.</p>`;
 
   App.userEmail = () => (user && user.email) || "";
+  App.ordersCount = () => (profile && profile.orders) || 0;
+  /* Numéros déjà servis : on garde seulement une empreinte du numéro (pas le numéro lui-même) */
+  const telKey = async t => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode("slice-pizza:" + t)))].map(b => b.toString(16).padStart(2, "0")).join("");
+  App.telSeen = async t => { const f = await load(); return (await f.getDoc(f.doc(f.db, "clients", await telKey(t)))).exists(); };
+  App.telMark = async t => { try { const f = await load(), r = f.doc(f.db, "clients", await telKey(t)); if (!(await f.getDoc(r)).exists()) await f.setDoc(r, { at: f.serverTimestamp() }); } catch (e) { console.warn(e); } };
   App.refCode = () => (profile && profile.code) || "";
   /* Après l'envoi d'une commande : statistiques (sans données perso) + historique + points */
   App.onOrder = async o => {
@@ -2068,6 +2122,16 @@ const CONFIG = {
       catch (err) { App.toast("Impossible (" + (err.code || "erreur") + ")"); }
       return; }
     const v = e.target.closest("[data-adm-view]"); if (v) { admView = v.dataset.admView; renderAdmin(); }
+    const tc = e.target.closest("[data-adm-telchk],[data-adm-telmark]");
+    if (tc) {
+      const raw = ($("[data-adm-tel]") || {}).value || "", res = $("[data-adm-telres]");
+      let t = raw.replace(/\D/g, ""); if (t.startsWith("212")) t = t.slice(3); if (t.startsWith("0")) t = t.slice(1);
+      if (!/^[5-7]\d{8}$/.test(t)) { res.textContent = "Numéro marocain invalide."; return; }
+      res.textContent = "…";
+      (tc.dataset.admTelmark !== undefined ? App.telMark(t).then(() => App.telSeen(t)) : App.telSeen(t))
+        .then(seen => { res.textContent = seen ? "❌ Déjà client : pas de remise." : `✅ Jamais commandé sur le site : remise -${+((CONFIG.order.firstOrder || {}).percent || 0)} % OK.`; })
+        .catch(err => { res.textContent = "Vérification impossible (" + (err.code || "erreur") + ")"; });
+    }
   });
 
   function renderAdmin() {
@@ -2087,6 +2151,9 @@ const CONFIG = {
         <div class="hot"><b class="display">${tot.a}</b><span>slices à offrir</span></div>
       </div>
       ${statsBlock()}
+      <h4 class="adm-h">Offre nouveau client (-${+((CONFIG.order.firstOrder || {}).percent || 0)} %)</h4>
+      <div class="adm-tel"><input type="tel" data-adm-tel placeholder="Numéro du client : 06…"><button type="button" class="linkbtn" data-adm-telchk>Vérifier</button><button type="button" class="linkbtn" data-adm-telmark>Marquer déjà client</button></div>
+      <p class="note" data-adm-telres>Un numéro marqué « déjà client » n'a plus la remise. Utile pour les anciens clients WhatsApp.</p>
       <h4 class="adm-h">Clients</h4>
       ${tot.r ? `<div class="adm-refs">🎁 ${tot.r} client${tot.r > 1 ? "s" : ""} venu${tot.r > 1 ? "s" : ""} par parrainage</div>` : ""}
       <div class="adm-tools"><input type="search" data-adm-q placeholder="Chercher un nom ou un téléphone…" value="${esc(adminQ)}"><button type="button" class="linkbtn" data-adm-refresh>↻ Actualiser</button></div>
@@ -2335,7 +2402,7 @@ const CONFIG = {
     "Lien à ajouter dans CONFIG.order": "الرابط خاصو يتزاد",
     /* ---- panier ---- */
     "Ton panier": "السلة ديالك", "Panier vide ?": "السلة خاوية؟", "Une slice, ça se refuse pas.": "سلايس، ما كتترفضش.",
-    "Je prends": "نديها", "Total estimé": "المجموع تقريباً", "Tes infos": "المعلومات ديالك",
+    "Je prends": "نديها", "Total estimé": "المجموع تقريباً", "Sous-total": "المجموع قبل التخفيض", "À payer": "اللي غادي تخلص", "Tes infos": "المعلومات ديالك",
     "Prénom et nom *": "السمية والكنية *", "Téléphone *": "التيليفون *", "Adresse de livraison *": "عنوان التوصيل *",
     "Prénom et nom": "السمية والكنية", "Téléphone": "التيليفون", "Adresse de livraison": "عنوان التوصيل",
     "Livraison": "توصيل", "À emporter": "ديها معاك", "Sur place": "ف البلاصة", "Remarque (facultatif)": "ملاحظة (إلا بغيتي)",
@@ -2434,7 +2501,11 @@ const CONFIG = {
     [/^Minimum de commande : (\d+) DH\. Encore (\d+) DH 🍕$/, (m, a, b) => `أقل كوموند: ${a} درهم. باقي ليك ${b} درهم 🍕`],
     [/^(Livraison|Prête) entre (\d+) et (\d+) min$/, (m, a, b, c) => `${a === "Livraison" ? "الليفريزون" : "واجدة"} بين ${b} و ${c} دقيقة`],
     [/^Minimum de commande : (\d+) DH\. Il te manque (\d+) DH\.$/, (m, a, b) => `أقل كوموند: ${a} درهم. باقي ليك ${b} درهم.`],
+    [/^🎁 Nouveau client : -(\d+) % sur ta 1re commande$/, (m, a) => `🎁 كليان جديد: -${a}% على أول كوموند`],
+    [/^🎁 -(\d+) % sur ta 1re commande : entre ton numéro de téléphone pour en profiter$/, (m, a) => `🎁 -${a}% على أول كوموند: دخل نمرة التيليفون ديالك باش تستافد`],
+    [/^L'offre -(\d+) % est réservée à la 1re commande : ce numéro a déjà commandé chez nous\.$/, (m, a) => `عرض -${a}% غير لأول كوموند: هاد النمرة سبق ليها كوموندات عندنا.`],
     [/^Commande (SP-\w+) · (.+)$/, (m, a, b) => `الكوموند ${a} · ${({ "Livraison": "ليفريزون", "À emporter": "تاخدها معاك", "Sur place": "تاكل تما" })[b] || b}`],
+    [/^-(\d[\d\s ]*) DH$/, (m, a) => `-${a} درهم`],
     [/^(\d[\d\s ]*) DH$/, (m, a) => `${a} درهم`],
     [/^🎁 Parrainage : \+(\d+) slices sur ta carte !$/, (m, a) => `🎁 جيب صحابك: +${a} سلايسات ف الكارطة ديالك!`],
     [/^👥 (\d+) amis? parrainés? · \+(\d+) slices? cochées?$/, (m, a, b) => `👥 ${a} صحاب جبتيهم · +${b} سلايس مشيكية`],

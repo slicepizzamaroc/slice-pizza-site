@@ -40,6 +40,13 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+    // Numéros déjà servis (offre 1re commande) : empreinte du numéro, jamais le numéro lui-même
+    match /clients/{h} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if request.resource.data.keys().hasOnly(['at']) && request.resource.data.at == request.time;
+      allow update, delete: if isAdmin();
+    }
     match /users/{uid} {
       allow read: if owner(uid) || isAdmin();
       allow create: if owner(uid) && !request.resource.data.keys().hasAny(['redeemed']);
