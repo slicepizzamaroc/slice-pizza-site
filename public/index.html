@@ -515,6 +515,7 @@ html[lang="ar"] .fav{right:auto;left:10px}
 .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem}
 .modes button{padding:.65rem .3rem;border-radius:10px;border:2px solid var(--black);background:#fff;font-weight:800;font-size:.8rem;color:var(--black)}
 .modes button[aria-pressed="true"]{background:var(--black);color:var(--yellow)}
+.far{margin:.6rem 0;padding:.6rem .8rem;border-radius:10px;background:#ffe3e3;color:#b3121a;font-weight:700;font-size:.92rem}
 .geo{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
 .geo button{padding:.6rem .8rem;border-radius:10px;border:2px dashed var(--black);background:#fff;font-weight:800;font-size:.85rem;color:var(--black)}
 .geo small{color:#2a7a2a;font-weight:700}
@@ -847,7 +848,7 @@ html[dir="rtl"] .otimer{padding:.8rem 1rem .8rem 2.6rem}html[dir="rtl"] .otimer 
         <li><a href="#lovers">Slice Lovers</a></li>
       </ul></div>
     </div>
-    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v51</span></div>
+    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v52</span></div>
   </div>
 </footer>
 
@@ -1006,7 +1007,9 @@ const CONFIG = {
     whatsapp: "212705510305",   // format international sans + ni espaces (0705510305 → 212705510305)
     phone: "+212 7 05 51 03 05",   // même numéro que WhatsApp (à changer si un fixe existe)
     direct: "",                         // lien de commande en ligne directe si un jour vous en avez un
-    minOrder: 100,                      // minimum de commande en DH (0 = pas de minimum)
+    minOrder: 60,                       // minimum de commande en DH (0 = pas de minimum) : 60 DH, demandé par Simo le 25 nov.
+    // Livraison : 10 DH dans un rayon de 3 km autour du restaurant (Simo, 25 nov.). lat/lng = Slice Pizza sur Google Maps.
+    delivery: { fee: 10, radiusKm: 3, lat: 34.2601297, lng: -6.5847008 },
     minOrderModes: ["Livraison"],       // modes concernés par le minimum (à emporter / sur place : pas de minimum)
     // Offre nouveau client : remise sur la 1re commande, reconnue par le numéro de téléphone (pas l'email)
     firstOrder: { percent: 10, until: "2026-12-06" },   // percent 0 = offre coupée ; until "2026-12-05" = dernier jour (vide = pas de date de fin)
@@ -1501,6 +1504,14 @@ const CONFIG = {
   let client = { name: "", phone: "", mode: "Livraison", address: "", geo: "", note: "", email: "" };
   const MIN = +(O.minOrder || 0), minOn = () => MIN > 0 && (!O.minOrderModes || O.minOrderModes.includes(client.mode)), EM = C.email || {}, mailOn = !!(EM.publicKey && EM.serviceId && EM.templateId);
   const mailOk = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+  /* Livraison : frais fixes + rayon max (distance à vol d'oiseau depuis la position GPS partagée) */
+  const DV = O.delivery || {}, FEE = +(DV.fee || 0), RAD = +(DV.radiusKm || 0);
+  const feeOf = () => client.mode === "Livraison" ? FEE : 0;
+  const geoKm = () => { const m = /q=(-?[\d.]+),(-?[\d.]+)/.exec(client.geo || ""); if (!m || !DV.lat) return null;
+    const r = x => x * Math.PI / 180, a = r(+m[1] - DV.lat), b = r(+m[2] - DV.lng);
+    const h = Math.sin(a / 2) ** 2 + Math.cos(r(DV.lat)) * Math.cos(r(+m[1])) * Math.sin(b / 2) ** 2; return 12742 * Math.asin(Math.sqrt(h)); };
+  const kmTxt = k => k.toFixed(1).replace(".", ",") + " km";
+  const tooFar = () => { const k = client.mode === "Livraison" && RAD ? geoKm() : null; return k !== null && k > RAD ? k : 0; };
   try { Object.assign(client, JSON.parse(localStorage.getItem("slice-client") || "{}")); } catch (e) {}
   const saveClient = () => { try { localStorage.setItem("slice-client", JSON.stringify(client)); } catch (e) {} };
   const phoneOk = v => /^(?:\+?212|0)[5-7]\d{8}$/.test(v.replace(/[\s.\-]/g, ""));
@@ -1526,11 +1537,15 @@ const CONFIG = {
     const ids = Object.keys(cart), priced = ids.length && ids.every(id => has(find(id).price));
     const total = priced ? ids.reduce((s, id) => s + find(id).price * cart[id], 0) : null;
     if (total === null) { box.innerHTML = ""; return; }
-    const d = foDisc(total), fmt = n => n.toLocaleString("fr-MA");
-    let h = d ? `<div class="total sub"><span>Sous-total</span><span>${fmt(total)} DH</span></div>
-      <div class="fo-promo"><span>🎁 Nouveau client : -${FOP} % sur ta 1re commande</span><b>-${fmt(d)} DH</b></div>
-      <div class="total"><span>À payer</span><span>${fmt(total - d)} DH</span></div>`
+    const d = foDisc(total), fee = feeOf(), fmt = n => n.toLocaleString("fr-MA");
+    let h = d || fee ? `<div class="total sub"><span>Sous-total</span><span>${fmt(total)} DH</span></div>
+      ${d ? `<div class="fo-promo"><span>🎁 Nouveau client : -${FOP} % sur ta 1re commande</span><b>-${fmt(d)} DH</b></div>` : ""}
+      ${fee ? `<div class="total sub"><span>Livraison</span><span>${fmt(fee)} DH</span></div>` : ""}
+      <div class="total"><span>À payer</span><span>${fmt(total - d + fee)} DH</span></div>`
       : `<div class="total"><span>Total estimé</span><span>${fmt(total)} DH</span></div>`;
+    if (client.mode === "Livraison" && RAD) { const far = tooFar(), k = geoKm();
+      h += far ? `<p class="far">Tu es à ${kmTxt(far)} du restaurant : on livre jusqu'à ${RAD} km. Choisis À emporter ou commande sur Glovo.</p>`
+        : `<p class="note">Livraison ${fee} DH dans un rayon de ${RAD} km autour du restaurant${k !== null ? ` (tu es à ${kmTxt(k)})` : ""}.</p>`; }
     if (foOn() && !fo.st && has(O.whatsapp)) h += `<div class="fo-promo hint"><span>🎁 -${FOP} % sur ta 1re commande : entre ton numéro de téléphone pour en profiter</span></div>`;
     if (foOn() && fo.st === "old") h += `<p class="note">L'offre -${FOP} % est réservée à la 1re commande : ce numéro a déjà commandé chez nous.</p>`;
     box.innerHTML = h;
@@ -1562,20 +1577,24 @@ const CONFIG = {
     const gone = Object.keys(cart).filter(isOff);
     if (gone.length) { $("[data-err]", f).textContent = `Plus disponible : ${gone.map(id => label(find(id))).join(", ")}. Retire-le du panier.`; $("[data-err]", f).scrollIntoView({ block: "center", behavior: "smooth" }); return; }
     const sub0 = Object.keys(cart).reduce((t, id) => t + (has(find(id).price) ? find(id).price * cart[id] : 0), 0);
+    const far = tooFar();
+    if (far) { $("[data-err]", f).innerHTML = `Tu es à ${kmTxt(far)} du restaurant : on livre jusqu'à ${RAD} km. Choisis À emporter${has(O.glovo) ? ` ou <a href="${O.glovo}" target="_blank" rel="noopener">commande sur Glovo</a>` : ""}.`; $("[data-err]", f).scrollIntoView({ block: "center", behavior: "smooth" }); return; }
     if (minOn() && sub0 < MIN) { $("[data-err]", f).textContent = `Minimum de commande : ${MIN} DH. Il te manque ${MIN - sub0} DH.`; $("[data-err]", f).scrollIntoView({ block: "center", behavior: "smooth" }); return; }
     if (errs.length) { $("[data-err]", f).textContent = "Il manque : " + errs.join(", ") + "."; $("[data-err]", f).scrollIntoView({ block: "center", behavior: "smooth" }); return; }
     const ids = Object.keys(cart);
     const priced = ids.every(id => has(find(id).price));
     const total = priced ? ids.reduce((s, id) => s + find(id).price * cart[id], 0) : null;
     const no = "SP-" + Date.now().toString(36).slice(-5).toUpperCase();
-    const disc = foDisc(total), tel = normTel(client.phone);
+    const disc = foDisc(total), tel = normTel(client.phone), fee = feeOf(), km = client.mode === "Livraison" ? geoKm() : null;
+    const pay = total !== null ? total - disc + fee : null;
     const msg = `Salam Slice Pizza ! Nouvelle commande *${no}* :\n`
       + (disc ? `*NOUVEAU CLIENT* · 1re commande : -${FOP} % appliqué${fo.st === "new" ? "" : " (numéro non vérifié en ligne)"}\n` : "")
       + ids.map(id => `• ${cart[id]} × ${label(find(id))}`).join("\n")
-      + (total !== null ? (disc ? `\nSous-total : ${total} DH\nRemise nouveau client -${FOP} % : -${disc} DH\nTotal à payer : ${total - disc} DH` : `\nTotal estimé : ${total} DH`) : "")
+      + (total !== null ? (disc || fee ? `\nSous-total : ${total} DH` + (disc ? `\nRemise nouveau client -${FOP} % : -${disc} DH` : "") + (fee ? `\nLivraison : ${fee} DH` : "") + `\nTotal à payer : ${pay} DH` : `\nTotal estimé : ${total} DH`) : "")
       + `\n\nNom : ${client.name.trim()}\nTél : ${client.phone.trim()}\nMode : ${client.mode}`
-      + (client.mode === "Livraison" ? (client.address.trim() ? `\nAdresse : ${client.address.trim()}` : "") + (client.geo ? `\nPosition : ${client.geo}` : "") : "")
+      + (client.mode === "Livraison" ? (client.address.trim() ? `\nAdresse : ${client.address.trim()}` : "") + (client.geo ? `\nPosition : ${client.geo}${km !== null ? ` (env. ${kmTxt(km)})` : ""}` : "") : "")
       + (client.note.trim() ? `\nRemarque : ${client.note.trim()}` : "")
+      + (client.mode === "Livraison" && RAD && km === null ? `\n\nStaff : position non partagée, vérifier que l'adresse est à moins de ${RAD} km.` : "")
       + (disc ? `\n\nStaff : remise -${FOP} % nouveau client. Si ce numéro a déjà commandé chez nous, la remise ne s'applique pas.` : "")
       + "\n\nMerci de me confirmer la commande.";
     saveClient();
@@ -1583,10 +1602,10 @@ const CONFIG = {
     const slices = ids.reduce((n, id) => { const b = id.split("~")[0].split("|")[0], o = C.menu.find(x => x.id === b);
       return n + cart[id] * (SL[b] || (o && o.cat === "slices" ? 1 : 0) || (id === "menu-enfant|Slice" ? 1 : 0)); }, 0);
     const items = ids.map(id => ({ id, name: label(find(id)), qty: cart[id], price: find(id).price ?? null }));
-    if (window.SliceApp && SliceApp.onOrder) SliceApp.onOrder({ no, tel, items, total: total !== null ? total - disc : null, disc, slices,
+    if (window.SliceApp && SliceApp.onOrder) SliceApp.onOrder({ no, tel, items, total: pay, disc, slices,
       client: { name: client.name.trim(), phone: client.phone.trim(), mode: client.mode, address: client.address.trim(), geo: client.geo, note: client.note.trim() } });
     window.open(wa(msg), "_blank", "noopener");
-    if (mailTo) sendMail(mailTo, no, items, total !== null ? total - disc : null);
+    if (mailTo) sendMail(mailTo, no, items, pay);
     startTimer(no, client.mode);
   }
 
@@ -2471,7 +2490,7 @@ const CONFIG = {
     "Lien à ajouter dans CONFIG.order": "الرابط خاصو يتزاد",
     /* ---- panier ---- */
     "Ton panier": "السلة ديالك", "Panier vide ?": "السلة خاوية؟", "Une slice, ça se refuse pas.": "سلايس، ما كتترفضش.",
-    "Je prends": "نديها", "Total estimé": "المجموع تقريباً", "Sous-total": "المجموع قبل التخفيض", "À payer": "اللي غادي تخلص", "Tes infos": "المعلومات ديالك",
+    "Je prends": "نديها", "Total estimé": "المجموع تقريباً", "Sous-total": "ثمن الكوموند", "À payer": "اللي غادي تخلص", "Tes infos": "المعلومات ديالك",
     "Prénom et nom *": "السمية والكنية *", "Téléphone *": "التيليفون *", "Adresse de livraison *": "عنوان التوصيل *",
     "Prénom et nom": "السمية والكنية", "Téléphone": "التيليفون", "Adresse de livraison": "عنوان التوصيل",
     "Livraison": "توصيل", "À emporter": "ديها معاك", "Sur place": "ف البلاصة", "Remarque (facultatif)": "ملاحظة (إلا بغيتي)",
@@ -2575,6 +2594,8 @@ const CONFIG = {
     [/^L'offre -(\d+) % est réservée à la 1re commande : ce numéro a déjà commandé chez nous\.$/, (m, a) => `عرض -${a}% غير لأول كوموند: هاد النمرة سبق ليها كوموندات عندنا.`],
     [/^Commande (SP-\w+) · (.+)$/, (m, a, b) => `الكوموند ${a} · ${({ "Livraison": "ليفريزون", "À emporter": "تاخدها معاك", "Sur place": "تاكل تما" })[b] || b}`],
     [/^-(\d[\d\s ]*) DH$/, (m, a) => `-${a} درهم`],
+    [/^Livraison (\d+) DH dans un rayon de (\d+) km autour du restaurant(?: \(tu es à ([\d,]+) km\))?\.$/, (m, a, b, c) => `التوصيل ب ${a} درهم حتى ${b} كيلومتر من المحل${c ? ` (نتا على ${c} كم)` : ""}.`],
+    [/^Tu es à ([\d,]+) km du restaurant : on livre jusqu'à (\d+) km\. Choisis À emporter ou commande sur Glovo\.$/, (m, a, b) => `نتا على ${a} كم من المحل: كنوصلو غير حتى ${b} كم. ديها معاك ولا كوموندي من Glovo.`],
     [/^(\d[\d\s ]*) DH$/, (m, a) => `${a} درهم`],
     [/^🎁 Parrainage : \+(\d+) slices sur ta carte !$/, (m, a) => `🎁 جيب صحابك: +${a} سلايسات ف الكارطة ديالك!`],
     [/^👥 (\d+) amis? parrainés? · \+(\d+) slices? cochées?$/, (m, a, b) => `👥 ${a} صحاب جبتيهم · +${b} سلايس مشيكية`],
