@@ -848,7 +848,7 @@ html[dir="rtl"] .otimer{padding:.8rem 1rem .8rem 2.6rem}html[dir="rtl"] .otimer 
         <li><a href="#lovers">Slice Lovers</a></li>
       </ul></div>
     </div>
-    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v52</span></div>
+    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v53</span></div>
   </div>
 </footer>
 
@@ -1008,8 +1008,8 @@ const CONFIG = {
     phone: "+212 7 05 51 03 05",   // même numéro que WhatsApp (à changer si un fixe existe)
     direct: "",                         // lien de commande en ligne directe si un jour vous en avez un
     minOrder: 60,                       // minimum de commande en DH (0 = pas de minimum) : 60 DH, demandé par Simo le 25 nov.
-    // Livraison : 10 DH dans un rayon de 3 km autour du restaurant (Simo, 25 nov.). lat/lng = Slice Pizza sur Google Maps.
-    delivery: { fee: 10, radiusKm: 3, lat: 34.2601297, lng: -6.5847008 },
+    // Livraison : 10 DH dans un rayon de 4 km autour du restaurant (Simo, 25 nov. : 3 km puis 4 km). lat/lng = Slice Pizza sur Google Maps.
+    delivery: { fee: 10, radiusKm: 4, lat: 34.2601297, lng: -6.5847008 },
     minOrderModes: ["Livraison"],       // modes concernés par le minimum (à emporter / sur place : pas de minimum)
     // Offre nouveau client : remise sur la 1re commande, reconnue par le numéro de téléphone (pas l'email)
     firstOrder: { percent: 10, until: "2026-12-06" },   // percent 0 = offre coupée ; until "2026-12-05" = dernier jour (vide = pas de date de fin)

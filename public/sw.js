@@ -1,6 +1,6 @@
 /* Slice Pizza — service worker : l'app s'ouvre même sans réseau.
    Change VERSION à chaque mise à jour du site pour forcer le rafraîchissement. */
-const VERSION = "slice-v52";
+const VERSION = "slice-v53";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(CORE)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION && k !== "slice-img").map(k => caches.delete(k)))).then(() => self.clients.claim())); });
