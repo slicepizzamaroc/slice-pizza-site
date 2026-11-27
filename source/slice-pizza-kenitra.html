@@ -868,7 +868,7 @@ html[dir="rtl"] .otimer{padding:.8rem 1rem .8rem 2.6rem}html[dir="rtl"] .otimer 
         <li><a href="#lovers">Slice Lovers</a></li>
       </ul></div>
     </div>
-    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v56</span></div>
+    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v57</span></div>
   </div>
 </footer>
 
@@ -1230,13 +1230,15 @@ const CONFIG = {
      noFirstOrder : true = le -10 % nouveau client ne s'applique pas aux produits en promo.
      effect : "snow" (neige), "webs" (toiles d'araignée), "sparkles" (paillettes dorées), "" (aucun).
      Pour tester un effet sans événement : ajouter ?effet=snow (ou webs / sparkles) à l'adresse du site. */
+  // Effet décoratif hors événement (Simo, 27 nov. : neige jusqu'au 1er janvier). L'effet d'un événement en cours passe avant.
+  effects: [{ effect: "snow", from: "2026-11-27", to: "2027-01-01" }],
   events: [
     { id: "black-friday-2026", from: "2026-11-27", to: "2026-11-29",
       badge: "Black Friday", sticker: "Black Friday -20 %",
       title: "-20 % sur toutes les pizzas Large et XXL",
       until: "jusqu'au dimanche 29 novembre",
       deal: { percent: 20, label: "Black Friday", items: [{ cats: ["classique", "signature", "premium"], size: "Large" }, { cats: ["xxl"] }] },
-      noFirstOrder: true, effect: "sparkles", theme: "bf", go: "pizza" }
+      noFirstOrder: true, effect: "snow", theme: "bf", go: "pizza" }
   ],
 
   /* ---- SLICE LOVERS ----
@@ -1351,7 +1353,7 @@ const CONFIG = {
   }
   /* Effets décoratifs (neige, toiles, paillettes) : événement en cours, ou ?effet=… pour tester */
   (() => {
-    const q = new URLSearchParams(location.search).get("effet"), fx = q || (EVT && EVT.effect) || "";
+    const q = new URLSearchParams(location.search).get("effet"), fx = q || (EVT && EVT.effect) || ((C.effects || []).find(e => e.from <= today && today <= e.to) || {}).effect || "";
     if (!fx || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     if (fx === "webs") {
       const rings = [25, 50, 75, 100].map(r => `<path d="M${r} 0Q${r * .8} ${r * .35} ${r * .92} ${r * .38}Q${r * .72} ${r * .72} ${r * .71} ${r * .71}Q${r * .72} ${r * .72} ${r * .38} ${r * .92}Q${r * .35} ${r * .8} 0 ${r}"/>`).join("");
