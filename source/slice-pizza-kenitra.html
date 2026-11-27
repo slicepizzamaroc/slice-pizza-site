@@ -868,7 +868,7 @@ html[dir="rtl"] .otimer{padding:.8rem 1rem .8rem 2.6rem}html[dir="rtl"] .otimer 
         <li><a href="#lovers">Slice Lovers</a></li>
       </ul></div>
     </div>
-    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v54</span></div>
+    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v55</span></div>
   </div>
 </footer>
 
@@ -1143,8 +1143,8 @@ const CONFIG = {
     { id: "pizza-salmon",         cat: "premium", name: "Salmon", desc: "Sauce crème, saumon fumé, poireau, câpres, roquette.", sizes: [["Individuelle", 53], ["Large", 65]] , img: PHOTOS["pizza-salmon"] },
     { id: "pizza-fruits-de-mer",  cat: "premium", name: "Fruit de mer", desc: "Crevette, calamar, poivron, citron.", sizes: [["Individuelle", 53], ["Large", 65]] , img: PHOTOS["pizza-fruits-de-mer"] },
 
-    { id: "xxl-classic-cheese", cat: "xxl", name: "XXL Classic Cheese", desc: "Pour toute la table.", price: 150 },
-    { id: "xxl-a-votre-gout",   cat: "xxl", name: "XXL À votre goût", desc: "Pour toute la table.", price: 185, img: PHOTOS["xxl-a-votre-gout"] },
+    { id: "xxl-classic-cheese", cat: "xxl", name: "XXL Classic Cheese", desc: "Pour toute la table.", price: 150, pick: [{ from: "sauces", n: 1 }] },
+    { id: "xxl-a-votre-gout",   cat: "xxl", name: "XXL À votre goût", desc: "Pour toute la table. Ta sauce + jusqu'à 4 ingrédients au choix.", price: 185, pick: [{ from: "sauces", n: 1 }, { from: "ingredients", n: 4, min: 0, uniq: true }], img: PHOTOS["xxl-a-votre-gout"] },
 
     { id: "combo-2-pizzas", cat: "combos-pizza", name: "Combo Duo", desc: "2 pizzas larges + 2 boissons 25 cl.", price: 129, promo: true, flag: "Combo", img: PHOTOS["combo-2-pizzas"], poster: true, pick: [{ from: "pizzas", n: 2 }, { from: "boissons", n: 2 }] },
     { id: "combo-3-pizzas", cat: "combos-pizza", name: "Combo Team", desc: "3 pizzas larges + 3 boissons 25 cl.", price: 169, promo: true, flag: "Combo" , img: PHOTOS["combo-3-pizzas"], poster: true, pick: [{ from: "pizzas", n: 3 }, { from: "boissons", n: 3 }] },
@@ -1212,7 +1212,10 @@ const CONFIG = {
     slices:   { one: "ta slice",   plural: "slices",   cats: ["slices"] },
     pizzas:   { one: "ta pizza",   plural: "pizzas",   cats: ["classique", "signature", "premium"] },
     boissons: { one: "ta boisson", plural: "boissons", sizesOf: "boisson" },
-    tiramisu: { one: "ton parfum de tiramisu", plural: "parfums", sizesOf: "tiramisu" }
+    tiramisu: { one: "ton parfum de tiramisu", plural: "parfums", sizesOf: "tiramisu" },
+    // XXL (Simo, 27 nov.) : sauce obligatoire, jusqu'à 4 ingrédients facultatifs
+    sauces:      { one: "ta sauce", plural: "sauces", list: ["Sauce tomate", "Sauce blanche"] },
+    ingredients: { one: "ton ingrédient", plural: "ingrédients", list: ["Poulet", "Viande hachée", "Dinde fumée", "Pepperoni", "Kebab", "Thon", "Crispy", "Fruits de mer", "Champignon", "Oignon", "Poivron", "Olive", "Maïs", "Ananas", "Jalapeño"] }
   },
 
   /* ---- PROMOS EN PLUS ----
@@ -1569,8 +1572,9 @@ const CONFIG = {
   const all = [...C.menu, ...extraPromos];
   /* Clé panier : id | taille ~ choix (ex. combo-trio-slice~slice-poulet*2,slice-thon,boisson:Sprite) */
   const PF = C.pickFrom || {};
-  const optName = k => { const [id, sz] = k.split(":"), p = all.find(x => x.id === id); return p ? (sz || p.name) : null; };
+  const optName = k => { if (k[0] === "@") return k.slice(k.indexOf(":") + 1); const [id, sz] = k.split(":"), p = all.find(x => x.id === id); return p ? (sz || p.name) : null; };
   const poolOf = from => { const d = PF[from] || {};
+    if (d.list) return d.list.map(x => ({ key: `@${from}:${x}`, name: x }));
     if (d.sizesOf) { const p = all.find(x => x.id === d.sizesOf); return p ? (p.sizes || []).map(z => ({ key: `${p.id}:${z[0]}`, name: z[0] })) : []; }
     return C.menu.filter(p => (d.cats || []).includes(p.cat) && !p.pick && visible(p)).map(p => ({ key: p.id, name: p.name })); };
   const pickOf = (p, size) => (p.pick || ((p.sizes || []).some(z => z[0] === "En menu") ? [{ from: "boissons", n: 1, when: "En menu" }] : []))
@@ -1829,15 +1833,16 @@ const CONFIG = {
     paintPick(); open("pick");
   }
   const gCount = g => Object.values(g.sel).reduce((t, n) => t + n, 0);
+  const gOk = g => { const c = gCount(g); return g.min !== undefined ? c >= g.min && c <= g.n : c === g.n; };
   function paintPick() {
     const box = $("[data-pick-body]"); if (!box || !pk) return;
     const { p, size, groups } = pk, price0 = size ? (p.sizes.find(z => z[0] === size) || [])[1] : p.price, price = dealPrice(price0, dealPct(p.id, size || ""));
-    const ok = groups.every(g => gCount(g) === g.n);
+    const ok = groups.every(gOk);
     $("#pick-title").textContent = p.name + (size ? ` · ${size}` : "");
     box.innerHTML = `${p.desc ? `<p class="note" style="margin:0 0 .6rem">${esc(p.desc)}</p>` : ""}${groups.map((g, gi) => { const d = PF[g.from] || {}, c = gCount(g);
-      return `<section class="pk-g"><h4>${g.n > 1 ? `Choisis ${g.n} ${esc(d.plural || g.from)}` : `Choisis ${esc(d.one || g.from)}`} <span class="pk-c${c === g.n ? " ok" : ""}">${c}/${g.n}</span></h4>
+      return `<section class="pk-g"><h4>${g.min !== undefined ? `Jusqu'à ${g.n} ${esc(d.plural || g.from)} (facultatif)` : g.n > 1 ? `Choisis ${g.n} ${esc(d.plural || g.from)}` : `Choisis ${esc(d.one || g.from)}`} <span class="pk-c${gOk(g) && c ? " ok" : ""}">${c}/${g.n}</span></h4>
         <ul class="pk-l">${g.pool.map(o => { const off = OFF.has(o.key) || (o.key.includes(":") && OFF.has(o.key.split(":")[0])), n = g.sel[o.key] || 0;
-          return `<li class="${off ? "off" : ""}${n ? " on" : ""}"><span data-noi18n>${esc(o.name)}</span>${off ? `<small>Indisponible</small>` : (g.n === 1
+          return `<li class="${off ? "off" : ""}${n ? " on" : ""}"><span data-noi18n>${esc(o.name)}</span>${off ? `<small>Indisponible</small>` : (g.n === 1 || g.uniq
             ? `<button type="button" class="pk-one" data-pk="${gi}" data-o="${esc(o.key)}" data-d="1" aria-pressed="${!!n}" aria-label="Choisir ${esc(o.name)}">${n ? "✓" : ""}</button>`
             : `<div class="qty">${n ? `<button type="button" data-pk="${gi}" data-o="${esc(o.key)}" data-d="-1" aria-label="Retirer un">−</button><span>${n}</span>` : ""}<button type="button" data-pk="${gi}" data-o="${esc(o.key)}" data-d="1" aria-label="Ajouter un">+</button></div>`)}</li>`; }).join("")}</ul></section>`; }).join("")}
       <button class="btn${ok ? "" : " dim"}" style="width:100%" type="button" data-pk-ok>${ok ? `Ajouter au panier · ${price} DH` : "Termine tes choix"}</button>`;
@@ -1845,10 +1850,11 @@ const CONFIG = {
   document.addEventListener("click", e => {
     const b = e.target.closest("[data-pk]");
     if (b && pk) { const g = pk.groups[+b.dataset.pk], k = b.dataset.o, d = +b.dataset.d;
+      if (g.uniq && g.sel[k]) { delete g.sel[k]; paintPick(); return; }
       if (d > 0 && gCount(g) >= g.n) { if (g.n === 1) g.sel = {}; else { toast(`Déjà ${g.n} choisis. Retire-en un d'abord.`); return; } }
       g.sel[k] = (g.sel[k] || 0) + d; if (g.sel[k] <= 0) delete g.sel[k]; paintPick(); return; }
     if (e.target.closest("[data-pk-ok]") && pk) {
-      const miss = pk.groups.find(g => gCount(g) !== g.n);
+      const miss = pk.groups.find(g => !gOk(g));
       if (miss) { const d = PF[miss.from] || {}; toast(miss.n > 1 ? `Choisis ${miss.n} ${d.plural || miss.from}` : `Choisis ${d.one || miss.from}`); return; }
       const ch = pk.groups.flatMap(g => g.pool.filter(o => g.sel[o.key]).map(o => g.sel[o.key] > 1 ? `${o.key}*${g.sel[o.key]}` : o.key)).join(",");
       const id = `${pk.p.id}${pk.size ? `|${pk.size}` : ""}~${ch}`;
@@ -2593,7 +2599,7 @@ const CONFIG = {
     "Lien à ajouter dans CONFIG.order": "الرابط خاصو يتزاد",
     /* ---- panier ---- */
     "Ton panier": "السلة ديالك", "Panier vide ?": "السلة خاوية؟", "Une slice, ça se refuse pas.": "سلايس، ما كتترفضش.",
-    "Je prends": "نديها", "Total estimé": "المجموع تقريباً", "Sous-total": "ثمن الكوموند",
+    "Je prends": "نديها", "Total estimé": "المجموع تقريباً", "Sous-total": "ثمن الكوموند", "Pour toute la table. Ta sauce + jusqu'à 4 ingrédients au choix.": "للطابلة كاملة. الصوص ديالك + حتى 4 مكونات على ذوقك.",
     "-20 % sur toutes les pizzas Large et XXL": "-20% على جميع البيتزا Large و XXL",
     "Black Friday · -20 % sur toutes les pizzas Large et XXL": "Black Friday · -20% على جميع البيتزا Large و XXL",
     "jusqu'au dimanche 29 novembre": "حتى نهار الحد 29 نونبر",
@@ -2726,6 +2732,9 @@ const CONFIG = {
     [/^Choisis (\d+) (slices|pizzas|boissons|parfums) (\d+)\/(\d+)$/, (m, a, b, c, d) => `ختار ${a} ${({ slices: "سلايسات", pizzas: "بيتزات", boissons: "مشروبات", parfums: "بنات" })[b]} ${c}/${d}`],
     [/^Choisis (\d+) (slices|pizzas|boissons|parfums)$/, (m, a, b) => `ختار ${a} ${({ slices: "سلايسات", pizzas: "بيتزات", boissons: "مشروبات", parfums: "بنات" })[b]}`],
     [/^Choisis (ta slice|ta pizza|ta boisson|ton parfum de tiramisu)$/, (m, a) => `ختار ${({ "ta slice": "السلايس", "ta pizza": "البيتزا", "ta boisson": "المشروب", "ton parfum de tiramisu": "بنة التيراميسو" })[a]} ديالك`],
+    [/^Jusqu'à (\d+) ingrédients \(facultatif\) (\d+)\/(\d+)$/, (m, a, b, c) => `حتى ${a} مكونات (إلا بغيتي) ${b}/${c}`],
+    [/^Jusqu'à (\d+) ingrédients \(facultatif\)$/, (m, a) => `حتى ${a} مكونات (إلا بغيتي)`],
+    [/^Choisis ta sauce (\d+)\/(\d+)$/, (m, a, b) => `ختار الصوص ${a}/${b}`], [/^Choisis ta sauce$/, () => "ختار الصوص"],
     [/^Ajouter au panier · (\d+) DH$/, (m, a) => `زيد للسلة · ${a} درهم`],
     [/^Déjà (\d+) choisis\. Retire-en un d'abord\.$/, (m, a) => `ديجا ختاريتي ${a}. حيد واحد قبل.`],
     [/^Plus disponible : (.+)\. Retire-le du panier\.$/, (m, a) => `مابقاش: ${a}. حيدو من السلة.`],
