@@ -516,6 +516,25 @@ html[lang="ar"] .fav{right:auto;left:10px}
 .modes button{padding:.65rem .3rem;border-radius:10px;border:2px solid var(--black);background:#fff;font-weight:800;font-size:.8rem;color:var(--black)}
 .modes button[aria-pressed="true"]{background:var(--black);color:var(--yellow)}
 .far{margin:.6rem 0;padding:.6rem .8rem;border-radius:10px;background:#ffe3e3;color:#b3121a;font-weight:700;font-size:.92rem}
+/* Événements (Black Friday, Noël…) */
+.evt{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .7rem;margin:0 0 1.2rem;padding:.8rem 1rem;border-radius:14px;background:#000;border:2px solid var(--yellow);color:var(--white);text-decoration:none;box-shadow:0 6px 0 var(--red);max-width:560px;transition:transform .2s var(--ease)}
+.evt:hover{transform:translateY(-2px)}
+.evt__badge{background:var(--yellow);color:#000;font:400 1rem/1 var(--display);letter-spacing:.06em;text-transform:uppercase;padding:.35rem .5rem;border-radius:6px}
+.evt__t{font:400 clamp(1.1rem,3.6vw,1.45rem)/1.1 var(--display);text-transform:uppercase;letter-spacing:.02em;color:var(--yellow);flex:1 1 220px}
+.evt__u{flex-basis:100%;color:#cfcfcf;font-size:.85rem}
+.evt__go{font:400 1rem/1 var(--display);text-transform:uppercase;color:var(--white);margin-inline-start:auto}
+.stamp.evt-stamp{background:#000;border:3px solid var(--yellow);color:var(--yellow);box-shadow:0 0 0 4px var(--red)}
+.card__flag.deal{background:var(--yellow);color:#000}
+.price .was{font-size:.62em;color:#9a9a9a;text-decoration-thickness:2px;margin-inline-end:.15rem}
+.fo-promo.deal{background:#000;color:var(--yellow)}
+.evt-card{border:3px solid var(--yellow)}
+.fx-canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60}
+.fx-webs{position:fixed;inset:0;pointer-events:none;z-index:60}
+.fx-webs i{position:absolute;top:0;width:min(28vw,190px)}
+.fx-webs .tl{left:0}.fx-webs .tr{right:0;transform:scaleX(-1)}
+.fx-webs .spider{left:auto;right:min(16vw,110px);width:2px;height:120px;background:rgba(255,255,255,.5);animation:fxSp 6s ease-in-out infinite;transform-origin:top}
+.fx-webs .spider b{position:absolute;bottom:-12px;left:-9px;width:20px;height:16px;border-radius:50%;background:#111;box-shadow:0 0 0 2px rgba(255,255,255,.35)}
+@keyframes fxSp{0%,100%{height:90px}50%{height:170px}}
 .geo{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
 .geo button{padding:.6rem .8rem;border-radius:10px;border:2px dashed var(--black);background:#fff;font-weight:800;font-size:.85rem;color:var(--black)}
 .geo small{color:#2a7a2a;font-weight:700}
@@ -647,6 +666,7 @@ html[dir="rtl"] .otimer{padding:.8rem 1rem .8rem 2.6rem}html[dir="rtl"] .otimer 
       <h1 id="hero-title" class="display" data-logo-hero data-noi18n><span>Slice</span><span>Pizza</span></h1>
       <p class="hero__sub">New York Style <em>—</em> à Kénitra</p>
       <p class="hero__lead">La pizza américaine à la part. 25 cm, pliée, mangée à la main.</p>
+      <a class="evt" href="#menu" data-evt-banner hidden></a>
       <div class="hero__ctas">
         <button class="btn" type="button" data-open-order>Commander</button>
         <a class="btn ghost" href="#menu">Voir le menu</a>
@@ -848,7 +868,7 @@ html[dir="rtl"] .otimer{padding:.8rem 1rem .8rem 2.6rem}html[dir="rtl"] .otimer 
         <li><a href="#lovers">Slice Lovers</a></li>
       </ul></div>
     </div>
-    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v53</span></div>
+    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v54</span></div>
   </div>
 </footer>
 
@@ -1200,6 +1220,21 @@ const CONFIG = {
      Ajoute ici une offre temporaire : { title, text, price } */
   promos: [],
 
+  /* ---- ÉVÉNEMENTS (Black Friday, Noël, Réveillon, Ramadan…) ----
+     Chaque événement s'affiche tout seul entre from et to (dates incluses), puis le site redevient normal.
+     deal : remise auto dans le panier sur les produits ciblés (cats + size optionnelle, ou ids).
+     noFirstOrder : true = le -10 % nouveau client ne s'applique pas aux produits en promo.
+     effect : "snow" (neige), "webs" (toiles d'araignée), "sparkles" (paillettes dorées), "" (aucun).
+     Pour tester un effet sans événement : ajouter ?effet=snow (ou webs / sparkles) à l'adresse du site. */
+  events: [
+    { id: "black-friday-2026", from: "2026-11-27", to: "2026-11-29",
+      badge: "Black Friday", sticker: "Black Friday -20 %",
+      title: "-20 % sur toutes les pizzas Large et XXL",
+      until: "jusqu'au dimanche 29 novembre",
+      deal: { percent: 20, label: "Black Friday", items: [{ cats: ["classique", "signature", "premium"], size: "Large" }, { cats: ["xxl"] }] },
+      noFirstOrder: true, effect: "sparkles", theme: "bf", go: "pizza" }
+  ],
+
   /* ---- SLICE LOVERS ----
      stamps : nombre de slices à collectionner (null = à confirmer).
      perks : récompenses / challenges / cadeaux / offres exclusives.
@@ -1246,6 +1281,18 @@ const CONFIG = {
   const has = v => v !== null && v !== undefined && v !== "";
   const priceTxt = p => has(p) ? `${Number(p).toLocaleString("fr-MA")}<small>DH</small>` : "";
 
+  /* ---------- Événement en cours (Black Friday, Noël…) ---------- */
+  const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
+  const EVT = (C.events || []).find(e => e.from <= today && today <= e.to) || null;
+  const DEAL = EVT && EVT.deal && +EVT.deal.percent > 0 ? EVT.deal : null;
+  /* % de remise événement pour un produit (id) et une taille, 0 sinon */
+  const dealPct = (pid, size) => { if (!DEAL) return 0; const p = C.menu.find(x => x.id === pid); if (!p) return 0;
+    return (DEAL.items || []).some(r => (r.ids ? r.ids.includes(pid) : (r.cats || []).includes(p.cat)) && (!r.size || r.size === size)) ? +DEAL.percent : 0; };
+  const dealPrice = (price, pct) => pct ? Math.round(price * (100 - pct) / 100) : price;
+  /* Prix affiché sur une carte : barré + prix promo si l'événement le cible */
+  const cardPrice = (p, size, price) => { const pct = dealPct(p.id, size);
+    return pct && has(price) ? `<s class="was">${Number(price).toLocaleString("fr-MA")}</s> ${priceTxt(dealPrice(price, pct))}` : priceTxt(price); };
+
   /* Image avec repli : si la photo n'existe pas, on garde le visuel de marque */
   /* Les photos se chargent quand elles approchent de l'écran (site plus léger) */
   const lazyIO = "IntersectionObserver" in window ? new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { lazyIO.unobserve(e.target); const f = e.target.__photo; delete e.target.__photo; f && f(); } }), { rootMargin: "600px 0px" }) : null;
@@ -1287,6 +1334,45 @@ const CONFIG = {
     t.innerHTML = items + items + items + items;
   });
 
+  /* ---------- Événement : bandeau, macaron, ticker, thème ---------- */
+  if (EVT) {
+    document.documentElement.dataset.evt = EVT.theme || EVT.id;
+    const b = $("[data-evt-banner]");
+    if (b) { b.hidden = false; b.innerHTML = `<span class="evt__badge">${esc(EVT.badge)}</span><b class="evt__t">${esc(EVT.title)}</b>${EVT.until ? `<small class="evt__u">${esc(EVT.until)}</small>` : ""}<span class="evt__go">J'en profite ▶</span>`;
+      b.addEventListener("click", () => { if (EVT.go && window.SliceMenu) SliceMenu(EVT.go); }); }
+    document.addEventListener("click", e => { if (e.target.closest("[data-evt-menu]") && EVT.go && window.SliceMenu) SliceMenu(EVT.go); });
+    const st = $(".hero .stamp span"); if (st && EVT.sticker) { st.textContent = EVT.sticker; st.parentElement.classList.add("evt-stamp"); }
+    const tk = [`${EVT.badge} · ${EVT.title}`, ...C.brand.ticker.slice(0, 3)].map(x => `<span>${esc(x)}</span>`).join("");
+    $$("[data-ticker]").forEach(t => { t.innerHTML = tk + tk + tk + tk; });
+  }
+  /* Effets décoratifs (neige, toiles, paillettes) : événement en cours, ou ?effet=… pour tester */
+  (() => {
+    const q = new URLSearchParams(location.search).get("effet"), fx = q || (EVT && EVT.effect) || "";
+    if (!fx || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (fx === "webs") {
+      const rings = [25, 50, 75, 100].map(r => `<path d="M${r} 0Q${r * .8} ${r * .35} ${r * .92} ${r * .38}Q${r * .72} ${r * .72} ${r * .71} ${r * .71}Q${r * .72} ${r * .72} ${r * .38} ${r * .92}Q${r * .35} ${r * .8} 0 ${r}"/>`).join("");
+      const web = `<svg viewBox="0 0 120 120" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.1"><path d="M0 0L120 120M0 0L120 45M0 0L45 120M0 0L120 85M0 0L85 120"/>${rings}</svg>`;
+      const d = document.createElement("div"); d.className = "fx-webs"; d.setAttribute("aria-hidden", "true");
+      d.innerHTML = `<i class="tl">${web}</i><i class="tr">${web}</i><i class="spider"><b></b></i>`; document.body.append(d); return;
+    }
+    const cv = document.createElement("canvas"); cv.className = "fx-canvas"; cv.setAttribute("aria-hidden", "true"); document.body.append(cv);
+    const g = cv.getContext("2d"); let W = 0, H = 0; const N = fx === "snow" ? (innerWidth < 700 ? 45 : 90) : (innerWidth < 700 ? 26 : 50);
+    const size = () => { W = cv.width = innerWidth; H = cv.height = innerHeight; }; size(); addEventListener("resize", size);
+    const P = Array.from({ length: N }, () => ({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, r: fx === "snow" ? 1.2 + Math.random() * 2.8 : 1 + Math.random() * 1.8, v: .4 + Math.random() * 1.1, w: Math.random() * 6.28, t: Math.random() * 6.28 }));
+    (function loop() {
+      g.clearRect(0, 0, W, H);
+      P.forEach(p => {
+        p.y += p.v; p.w += .02; p.t += .06; p.x += Math.sin(p.w) * .5;
+        if (p.y > H + 6) { p.y = -6; p.x = Math.random() * W; }
+        if (fx === "snow") { g.fillStyle = "rgba(255,255,255,.85)"; g.beginPath(); g.arc(p.x, p.y, p.r, 0, 6.28); g.fill(); return; }
+        const a = .3 + .7 * Math.abs(Math.sin(p.t)), r = p.r * 1.7; g.fillStyle = `rgba(255,206,46,${a.toFixed(2)})`;
+        g.beginPath(); g.moveTo(p.x, p.y - r * 2); g.lineTo(p.x + r * .45, p.y - r * .45); g.lineTo(p.x + r * 2, p.y); g.lineTo(p.x + r * .45, p.y + r * .45);
+        g.lineTo(p.x, p.y + r * 2); g.lineTo(p.x - r * .45, p.y + r * .45); g.lineTo(p.x - r * 2, p.y); g.lineTo(p.x - r * .45, p.y - r * .45); g.fill();
+      });
+      requestAnimationFrame(loop);
+    })();
+  })();
+
   /* ---------- Photos de marque ---------- */
   photo($('[data-img="hero"]'), C.images.hero, "Slice Pizza Kénitra, slice New York style");
   photo($('[data-img="slice"]'), C.images.slice, "");
@@ -1314,20 +1400,23 @@ const CONFIG = {
       const sel = +(art.dataset.sel || 0);
       if (!off && offSz[sel]) { const j = offSz.findIndex(x => !x); art.dataset.sel = j;
         $$(".sz", art).forEach((b, i) => b.setAttribute("aria-pressed", i === j)); const ss = $(".szsel", art); if (ss) ss.value = j;
-        const pr = $("[data-price]", art); if (pr) pr.innerHTML = priceTxt(sz[j][1]); }
+        const pr = $("[data-price]", art); if (pr) pr.innerHTML = cardPrice(p, sz[j][0], sz[j][1]); }
     });
   }
   function card(p) {
     const name = has(p.name) ? esc(p.name) : `Produit ${esc(p.id)} ${TODO}`;
     const desc = has(p.desc) ? esc(p.desc) : (!has(p.name) && C.draft ? "Description courte à ajouter." : "");
     const sz = p.sizes && p.sizes.length ? p.sizes : null;
-    const price = sz ? `<span class="price" data-price>${priceTxt(sz[0][1])}</span>`
-      : has(p.price) ? `<span class="price">${priceTxt(p.price)}</span>` : `<span class="price">${TODO}</span>`;
+    const s0 = sz ? Math.max(0, sz.findIndex(z => dealPct(p.id, z[0]))) : 0;
+    const price = sz ? `<span class="price" data-price>${cardPrice(p, sz[s0][0], sz[s0][1])}</span>`
+      : has(p.price) ? `<span class="price">${cardPrice(p, "", p.price)}</span>` : `<span class="price">${TODO}</span>`;
     const sizes = !sz ? "" : sz.length > 3
-      ? `<select class="szsel" aria-label="Choix">${sz.map((s, i) => `<option value="${i}">${esc(s[0])}</option>`).join("")}</select>`
-      : `<div class="sizes" role="group" aria-label="Taille">${sz.map((s, i) => `<button type="button" class="sz" data-sz="${i}" aria-pressed="${i === 0}">${esc(s[0])}</button>`).join("")}</div>`;
-    const flag = p.flag ? `<span class="card__flag">${esc(p.flag)}</span>` : (p.best ? `<span class="card__flag">Best</span>` : "");
-    return `<article class="card rv" data-sel="0" data-pid="${esc(p.id)}"><button type="button" class="fav" data-fav="${esc(p.id)}" hidden aria-pressed="false" aria-label="Ajouter aux favoris">♥</button>
+      ? `<select class="szsel" aria-label="Choix">${sz.map((s, i) => `<option value="${i}"${i === s0 ? " selected" : ""}>${esc(s[0])}</option>`).join("")}</select>`
+      : `<div class="sizes" role="group" aria-label="Taille">${sz.map((s, i) => `<button type="button" class="sz" data-sz="${i}" aria-pressed="${i === s0}">${esc(s[0])}</button>`).join("")}</div>`;
+    const dp = sz ? sz.map(z => dealPct(p.id, z[0])).find(Boolean) : dealPct(p.id, "");
+    const flag = dp ? `<span class="card__flag deal">-${dp} %${sz && sz.length > 1 ? ` ${esc(sz[s0][0])}` : ""}</span>`
+      : p.flag ? `<span class="card__flag">${esc(p.flag)}</span>` : (p.best ? `<span class="card__flag">Best</span>` : "");
+    return `<article class="card rv" data-sel="${s0}" data-pid="${esc(p.id)}"><button type="button" class="fav" data-fav="${esc(p.id)}" hidden aria-pressed="false" aria-label="Ajouter aux favoris">♥</button>
       <div class="card__img${p.poster ? " is-poster" : ""}" data-src="${esc(p.img || (p.cat === "promos" ? "" : `images/${p.id}.jpg`))}">${flag}<span class="soldout">Indisponible</span><div class="card__ph"><small class="draft-only">Photo à ajouter</small></div></div>
       <div class="card__body">
         <h3 class="card__name" data-noi18n>${name}</h3>
@@ -1378,10 +1467,14 @@ const CONFIG = {
   msw.addEventListener("click", e => { const b = e.target.closest("[data-m]"); if (b) { showMenu(b.dataset.m); $("#menu").scrollIntoView({ behavior: "smooth" }); } });
   tabs.addEventListener("click", e => { const b = e.target.closest(".tab"); if (b) { setTab(b.dataset.cat); $("#cat-" + b.dataset.cat).scrollIntoView({ behavior: "smooth" }); } });
   showMenu(curMenu);
+  window.SliceMenu = m => showMenu(m);
 
   /* Section promos */
   const promosEl = $("[data-promos]");
-  promosEl.innerHTML = promoItems.length ? promoItems.map((p, i) => `
+  const evtCard = EVT ? `<article class="promo rv evt-card"><div><p class="kicker">${esc(EVT.badge)}</p><h3 class="display">${esc(EVT.title)}</h3></div>
+      <p>${esc(EVT.until ? `Remise appliquée automatiquement dans le panier, ${EVT.until}.` : "Remise appliquée automatiquement dans le panier.")}</p>
+      <div><a class="btn sm red" href="#menu" data-evt-menu>Voir les pizzas</a></div></article>` : "";
+  promosEl.innerHTML = evtCard + (promoItems.length ? promoItems.map((p, i) => `
     <article class="promo rv">
       <div><p class="kicker">Deal ${String(i + 1).padStart(2, "0")}</p>
       <h3 class="display">${has(p.name) ? esc(p.name) : "Titre promo " + TODO}</h3></div>
@@ -1390,7 +1483,7 @@ const CONFIG = {
         <span class="promo__price">${has(p.price) ? priceTxt(p.price) : TODO}</span>
         <button class="btn sm red" type="button" data-add="${esc(p.id)}">Je prends</button>
       </div></article>`).join("")
-    : `<article class="promo rv"><div><p class="kicker">Restez connectés</p><h3 class="display">Les deals tombent sur Insta</h3></div><p>Active les notifs sur @${esc(C.instagram.handle)} pour ne rater aucune promo.</p><a class="btn sm" href="https://www.instagram.com/${esc(C.instagram.handle)}/" target="_blank" rel="noopener">Follow</a></article>`;
+    : `<article class="promo rv"><div><p class="kicker">Restez connectés</p><h3 class="display">Les deals tombent sur Insta</h3></div><p>Active les notifs sur @${esc(C.instagram.handle)} pour ne rater aucune promo.</p><a class="btn sm" href="https://www.instagram.com/${esc(C.instagram.handle)}/" target="_blank" rel="noopener">Follow</a></article>`);
 
   /* ---------- Fidélité ---------- */
   const n = has(C.loyalty.stamps) ? Math.max(2, Math.min(15, +C.loyalty.stamps)) : 10;
@@ -1486,10 +1579,12 @@ const CONFIG = {
   const find = key => {
     const [main, ch] = key.split("~"), [id, size] = main.split("|"), p = all.find(x => x.id === id);
     if (!p) return;
-    if (!size && !ch) return p;
+    if (!size && !ch && !dealPct(id, "")) return p;
     let name = p.name, price = p.price;
     if (size) { const s = (p.sizes || []).find(x => x[0] === size); if (!s) return; name += ` · ${size}`; price = s[1]; }
     if (ch) { const t = choiceTxt(ch); if (t.includes(null)) return; name += ` (${t.join(", ")})`; }
+    const pct = has(price) ? dealPct(id, size) : 0;
+    if (pct) return { id: key, name: `${name} · ${DEAL.label || "Promo"} -${pct} %`, price: dealPrice(price, pct), was: price, deal: pct };
     return { id: key, name, price };
   };
   let cart = {};
@@ -1521,6 +1616,8 @@ const CONFIG = {
   const normTel = v => { let d = String(v || "").replace(/\D/g, ""); if (d.startsWith("212")) d = d.slice(3); if (d.startsWith("0")) d = d.slice(1); return d; };
   let telsSeen = []; try { telsSeen = JSON.parse(localStorage.getItem("slice-tels") || "[]"); } catch (e) {}
   let fo = { tel: "", st: "" }, foT = null;   // st : "new" | "old" | "wait" | "?" (vérification en ligne impossible)
+  /* Sous-total éligible au -X % nouveau client (sans les produits déjà en promo événement si noFirstOrder) */
+  const foBase = () => Object.keys(cart).reduce((t, id) => { const f = find(id); return t + (f && has(f.price) && !(f.deal && EVT && EVT.noFirstOrder) ? f.price * cart[id] : 0); }, 0);
   const foDisc = total => foOn() && total && (fo.st === "new" || fo.st === "?" || fo.st === "wait") && fo.tel === normTel(client.phone) ? Math.round(total * FOP / 100) : 0;
   function foCheck() {
     if (!foOn() || !phoneOk(client.phone)) { fo = { tel: "", st: "" }; return paintTotals(); }
@@ -1537,7 +1634,8 @@ const CONFIG = {
     const ids = Object.keys(cart), priced = ids.length && ids.every(id => has(find(id).price));
     const total = priced ? ids.reduce((s, id) => s + find(id).price * cart[id], 0) : null;
     if (total === null) { box.innerHTML = ""; return; }
-    const d = foDisc(total), fee = feeOf(), fmt = n => n.toLocaleString("fr-MA");
+    const d = foDisc(foBase()), fee = feeOf(), fmt = n => n.toLocaleString("fr-MA");
+    const dealIds = ids.filter(id => find(id).deal), saved = dealIds.reduce((t, id) => t + (find(id).was - find(id).price) * cart[id], 0);
     let h = d || fee ? `<div class="total sub"><span>Sous-total</span><span>${fmt(total)} DH</span></div>
       ${d ? `<div class="fo-promo"><span>🎁 Nouveau client : -${FOP} % sur ta 1re commande</span><b>-${fmt(d)} DH</b></div>` : ""}
       ${fee ? `<div class="total sub"><span>Livraison</span><span>${fmt(fee)} DH</span></div>` : ""}
@@ -1547,6 +1645,8 @@ const CONFIG = {
       h += far ? `<p class="far">Tu es à ${kmTxt(far)} du restaurant : on livre jusqu'à ${RAD} km. Choisis À emporter ou commande sur Glovo.</p>`
         : `<p class="note">Livraison ${fee} DH dans un rayon de ${RAD} km autour du restaurant${k !== null ? ` (tu es à ${kmTxt(k)})` : ""}.</p>`; }
     if (foOn() && !fo.st && has(O.whatsapp)) h += `<div class="fo-promo hint"><span>🎁 -${FOP} % sur ta 1re commande : entre ton numéro de téléphone pour en profiter</span></div>`;
+    if (saved) h = `<div class="fo-promo deal"><span>🔥 ${esc(DEAL.label || "Promo")} -${DEAL.percent} % déjà déduit</span><b>-${fmt(saved)} DH</b></div>` + h;
+    if (saved && foOn() && EVT.noFirstOrder && (fo.st === "new" || fo.st === "?" || fo.st === "wait")) h += `<p class="note">Le -${FOP} % nouveau client ne se cumule pas avec la promo ${esc(DEAL.label || "")} : il s'applique seulement aux autres articles.</p>`;
     if (foOn() && fo.st === "old") h += `<p class="note">L'offre -${FOP} % est réservée à la 1re commande : ce numéro a déjà commandé chez nous.</p>`;
     box.innerHTML = h;
   }
@@ -1585,11 +1685,13 @@ const CONFIG = {
     const priced = ids.every(id => has(find(id).price));
     const total = priced ? ids.reduce((s, id) => s + find(id).price * cart[id], 0) : null;
     const no = "SP-" + Date.now().toString(36).slice(-5).toUpperCase();
-    const disc = foDisc(total), tel = normTel(client.phone), fee = feeOf(), km = client.mode === "Livraison" ? geoKm() : null;
+    const disc = foDisc(foBase()), tel = normTel(client.phone), fee = feeOf(), km = client.mode === "Livraison" ? geoKm() : null;
     const pay = total !== null ? total - disc + fee : null;
     const msg = `Salam Slice Pizza ! Nouvelle commande *${no}* :\n`
       + (disc ? `*NOUVEAU CLIENT* · 1re commande : -${FOP} % appliqué${fo.st === "new" ? "" : " (numéro non vérifié en ligne)"}\n` : "")
       + ids.map(id => `• ${cart[id]} × ${label(find(id))}`).join("\n")
+      + (() => { const sv = ids.reduce((t, id) => t + (find(id).deal ? (find(id).was - find(id).price) * cart[id] : 0), 0);
+          return sv ? `\n(${DEAL.label || "Promo"} -${DEAL.percent} % déjà déduit : -${sv} DH)` : ""; })()
       + (total !== null ? (disc || fee ? `\nSous-total : ${total} DH` + (disc ? `\nRemise nouveau client -${FOP} % : -${disc} DH` : "") + (fee ? `\nLivraison : ${fee} DH` : "") + `\nTotal à payer : ${pay} DH` : `\nTotal estimé : ${total} DH`) : "")
       + `\n\nNom : ${client.name.trim()}\nTél : ${client.phone.trim()}\nMode : ${client.mode}`
       + (client.mode === "Livraison" ? (client.address.trim() ? `\nAdresse : ${client.address.trim()}` : "") + (client.geo ? `\nPosition : ${client.geo}${km !== null ? ` (env. ${kmTxt(km)})` : ""}` : "") : "")
@@ -1711,12 +1813,13 @@ const CONFIG = {
       const art = z.closest("article"), p = all.find(x => x.id === art.querySelector("[data-add]").dataset.add);
       art.dataset.sel = z.dataset.sz;
       $$(".sz", art).forEach(b => b.setAttribute("aria-pressed", b === z));
-      $("[data-price]", art).innerHTML = priceTxt(p.sizes[+z.dataset.sz][1]);
+      $("[data-price]", art).innerHTML = cardPrice(p, p.sizes[+z.dataset.sz][0], p.sizes[+z.dataset.sz][1]);
     }
     const q = e.target.closest("[data-q]");
     if (q) { const id = q.dataset.q; cart[id] = (cart[id] || 0) + +q.dataset.d; if (cart[id] <= 0) delete cart[id]; save(); renderCart(); }
   });
-  document.addEventListener("change", e => { const sel = e.target.closest(".szsel"); if (sel) sel.closest("article").dataset.sel = sel.value; });
+  document.addEventListener("change", e => { const sel = e.target.closest(".szsel"); if (!sel) return; const art = sel.closest("article"); art.dataset.sel = sel.value;
+    const p = all.find(x => x.id === art.dataset.pid), z = p && p.sizes[+sel.value], pr = $("[data-price]", art); if (z && pr) pr.innerHTML = cardPrice(p, z[0], z[1]); });
   renderCart();
 
   /* ---------- Choix obligatoires (combos, menus) ---------- */
@@ -1728,7 +1831,7 @@ const CONFIG = {
   const gCount = g => Object.values(g.sel).reduce((t, n) => t + n, 0);
   function paintPick() {
     const box = $("[data-pick-body]"); if (!box || !pk) return;
-    const { p, size, groups } = pk, price = size ? (p.sizes.find(z => z[0] === size) || [])[1] : p.price;
+    const { p, size, groups } = pk, price0 = size ? (p.sizes.find(z => z[0] === size) || [])[1] : p.price, price = dealPrice(price0, dealPct(p.id, size || ""));
     const ok = groups.every(g => gCount(g) === g.n);
     $("#pick-title").textContent = p.name + (size ? ` · ${size}` : "");
     box.innerHTML = `${p.desc ? `<p class="note" style="margin:0 0 .6rem">${esc(p.desc)}</p>` : ""}${groups.map((g, gi) => { const d = PF[g.from] || {}, c = gCount(g);
@@ -2490,7 +2593,12 @@ const CONFIG = {
     "Lien à ajouter dans CONFIG.order": "الرابط خاصو يتزاد",
     /* ---- panier ---- */
     "Ton panier": "السلة ديالك", "Panier vide ?": "السلة خاوية؟", "Une slice, ça se refuse pas.": "سلايس، ما كتترفضش.",
-    "Je prends": "نديها", "Total estimé": "المجموع تقريباً", "Sous-total": "ثمن الكوموند", "À payer": "اللي غادي تخلص", "Tes infos": "المعلومات ديالك",
+    "Je prends": "نديها", "Total estimé": "المجموع تقريباً", "Sous-total": "ثمن الكوموند",
+    "-20 % sur toutes les pizzas Large et XXL": "-20% على جميع البيتزا Large و XXL",
+    "Black Friday · -20 % sur toutes les pizzas Large et XXL": "Black Friday · -20% على جميع البيتزا Large و XXL",
+    "jusqu'au dimanche 29 novembre": "حتى نهار الحد 29 نونبر",
+    "J'en profite ▶": "نستافد ▶", "Voir les pizzas": "شوف البيتزا",
+    "Remise appliquée automatiquement dans le panier, jusqu'au dimanche 29 novembre.": "التخفيض كيتحسب بوحدو ف البانيي، حتى نهار الحد 29 نونبر.", "À payer": "اللي غادي تخلص", "Tes infos": "المعلومات ديالك",
     "Prénom et nom *": "السمية والكنية *", "Téléphone *": "التيليفون *", "Adresse de livraison *": "عنوان التوصيل *",
     "Prénom et nom": "السمية والكنية", "Téléphone": "التيليفون", "Adresse de livraison": "عنوان التوصيل",
     "Livraison": "توصيل", "À emporter": "ديها معاك", "Sur place": "ف البلاصة", "Remarque (facultatif)": "ملاحظة (إلا بغيتي)",
@@ -2594,6 +2702,9 @@ const CONFIG = {
     [/^L'offre -(\d+) % est réservée à la 1re commande : ce numéro a déjà commandé chez nous\.$/, (m, a) => `عرض -${a}% غير لأول كوموند: هاد النمرة سبق ليها كوموندات عندنا.`],
     [/^Commande (SP-\w+) · (.+)$/, (m, a, b) => `الكوموند ${a} · ${({ "Livraison": "ليفريزون", "À emporter": "تاخدها معاك", "Sur place": "تاكل تما" })[b] || b}`],
     [/^-(\d[\d\s ]*) DH$/, (m, a) => `-${a} درهم`],
+    [/^🔥 (.+) -(\d+) % déjà déduit$/, (m, a, b) => `🔥 ${a} -${b}% محسوب من قبل`],
+    [/^-(\d+) % Large$/, (m, a) => `-${a}% Large`],
+    [/^Le -(\d+) % nouveau client ne se cumule pas avec la promo (.+) : il s'applique seulement aux autres articles\.$/, (m, a, b) => `تخفيض -${a}% ديال الكليان الجديد ما كيتزادش مع عرض ${b}: كيتحسب غير على المنتوجات الأخرى.`],
     [/^Livraison (\d+) DH dans un rayon de (\d+) km autour du restaurant(?: \(tu es à ([\d,]+) km\))?\.$/, (m, a, b, c) => `التوصيل ب ${a} درهم حتى ${b} كيلومتر من المحل${c ? ` (نتا على ${c} كم)` : ""}.`],
     [/^Tu es à ([\d,]+) km du restaurant : on livre jusqu'à (\d+) km\. Choisis À emporter ou commande sur Glovo\.$/, (m, a, b) => `نتا على ${a} كم من المحل: كنوصلو غير حتى ${b} كم. ديها معاك ولا كوموندي من Glovo.`],
     [/^(\d[\d\s ]*) DH$/, (m, a) => `${a} درهم`],
