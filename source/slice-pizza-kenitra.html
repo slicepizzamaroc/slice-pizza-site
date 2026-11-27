@@ -868,7 +868,7 @@ html[dir="rtl"] .otimer{padding:.8rem 1rem .8rem 2.6rem}html[dir="rtl"] .otimer 
         <li><a href="#lovers">Slice Lovers</a></li>
       </ul></div>
     </div>
-    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v55</span></div>
+    <div class="ftr__legal"><span>© <span data-year></span> Slice Pizza Kénitra · N°097</span><span>In pizza we trust.</span><span class="ver" data-noi18n>v56</span></div>
   </div>
 </footer>
 
@@ -1144,7 +1144,7 @@ const CONFIG = {
     { id: "pizza-fruits-de-mer",  cat: "premium", name: "Fruit de mer", desc: "Crevette, calamar, poivron, citron.", sizes: [["Individuelle", 53], ["Large", 65]] , img: PHOTOS["pizza-fruits-de-mer"] },
 
     { id: "xxl-classic-cheese", cat: "xxl", name: "XXL Classic Cheese", desc: "Pour toute la table.", price: 150, pick: [{ from: "sauces", n: 1 }] },
-    { id: "xxl-a-votre-gout",   cat: "xxl", name: "XXL À votre goût", desc: "Pour toute la table. Ta sauce + jusqu'à 4 ingrédients au choix.", price: 185, pick: [{ from: "sauces", n: 1 }, { from: "ingredients", n: 4, min: 0, uniq: true }], img: PHOTOS["xxl-a-votre-gout"] },
+    { id: "xxl-a-votre-gout",   cat: "xxl", name: "XXL À votre goût", desc: "Pour toute la table. Ta sauce + ta sorte, ou Quatre saisons (4 sortes au choix).", price: 185, pick: [{ from: "sauces", n: 1 }, { from: "xxl", n: 1 }, { from: "xxl4", n: 4, uniq: true, ifPick: "@xxl:Quatre saisons" }], img: PHOTOS["xxl-a-votre-gout"] },
 
     { id: "combo-2-pizzas", cat: "combos-pizza", name: "Combo Duo", desc: "2 pizzas larges + 2 boissons 25 cl.", price: 129, promo: true, flag: "Combo", img: PHOTOS["combo-2-pizzas"], poster: true, pick: [{ from: "pizzas", n: 2 }, { from: "boissons", n: 2 }] },
     { id: "combo-3-pizzas", cat: "combos-pizza", name: "Combo Team", desc: "3 pizzas larges + 3 boissons 25 cl.", price: 169, promo: true, flag: "Combo" , img: PHOTOS["combo-3-pizzas"], poster: true, pick: [{ from: "pizzas", n: 3 }, { from: "boissons", n: 3 }] },
@@ -1213,9 +1213,10 @@ const CONFIG = {
     pizzas:   { one: "ta pizza",   plural: "pizzas",   cats: ["classique", "signature", "premium"] },
     boissons: { one: "ta boisson", plural: "boissons", sizesOf: "boisson" },
     tiramisu: { one: "ton parfum de tiramisu", plural: "parfums", sizesOf: "tiramisu" },
-    // XXL (Simo, 27 nov.) : sauce obligatoire, jusqu'à 4 ingrédients facultatifs
-    sauces:      { one: "ta sauce", plural: "sauces", list: ["Sauce tomate", "Sauce blanche"] },
-    ingredients: { one: "ton ingrédient", plural: "ingrédients", list: ["Poulet", "Viande hachée", "Dinde fumée", "Pepperoni", "Kebab", "Thon", "Crispy", "Fruits de mer", "Champignon", "Oignon", "Poivron", "Olive", "Maïs", "Ananas", "Jalapeño"] }
+    // XXL (Simo, 27 nov.) : sauce obligatoire + sorte au choix, ou Quatre saisons = 4 sortes au choix
+    sauces: { one: "ta sauce", plural: "sauces", list: ["Sauce tomate", "Sauce blanche"] },
+    xxl:    { one: "ta sorte de XXL", plural: "sortes", list: ["Poulet", "Poulet BBQ", "Viande hachée", "Kebab", "Charcuterie", "Hawaiian", "Pepperoni", "Thon", "Fruits de mer", "Mexican (spicy)", "Quatre saisons"] },
+    xxl4:   { one: "ta sorte", plural: "sortes pour ta Quatre saisons", list: ["Poulet", "Poulet BBQ", "Viande hachée", "Kebab", "Charcuterie", "Hawaiian", "Pepperoni", "Thon", "Fruits de mer", "Mexican (spicy)"] }
   },
 
   /* ---- PROMOS EN PLUS ----
@@ -1833,13 +1834,15 @@ const CONFIG = {
     paintPick(); open("pick");
   }
   const gCount = g => Object.values(g.sel).reduce((t, n) => t + n, 0);
+  const gOn = g => !g.ifPick || (pk && pk.groups.some(h => h.sel[g.ifPick]));
   const gOk = g => { const c = gCount(g); return g.min !== undefined ? c >= g.min && c <= g.n : c === g.n; };
   function paintPick() {
     const box = $("[data-pick-body]"); if (!box || !pk) return;
     const { p, size, groups } = pk, price0 = size ? (p.sizes.find(z => z[0] === size) || [])[1] : p.price, price = dealPrice(price0, dealPct(p.id, size || ""));
-    const ok = groups.every(gOk);
+    groups.forEach(g => { if (!gOn(g)) g.sel = {}; });
+    const ok = groups.every(g => !gOn(g) || gOk(g));
     $("#pick-title").textContent = p.name + (size ? ` · ${size}` : "");
-    box.innerHTML = `${p.desc ? `<p class="note" style="margin:0 0 .6rem">${esc(p.desc)}</p>` : ""}${groups.map((g, gi) => { const d = PF[g.from] || {}, c = gCount(g);
+    box.innerHTML = `${p.desc ? `<p class="note" style="margin:0 0 .6rem">${esc(p.desc)}</p>` : ""}${groups.map((g, gi) => { if (!gOn(g)) return ""; const d = PF[g.from] || {}, c = gCount(g);
       return `<section class="pk-g"><h4>${g.min !== undefined ? `Jusqu'à ${g.n} ${esc(d.plural || g.from)} (facultatif)` : g.n > 1 ? `Choisis ${g.n} ${esc(d.plural || g.from)}` : `Choisis ${esc(d.one || g.from)}`} <span class="pk-c${gOk(g) && c ? " ok" : ""}">${c}/${g.n}</span></h4>
         <ul class="pk-l">${g.pool.map(o => { const off = OFF.has(o.key) || (o.key.includes(":") && OFF.has(o.key.split(":")[0])), n = g.sel[o.key] || 0;
           return `<li class="${off ? "off" : ""}${n ? " on" : ""}"><span data-noi18n>${esc(o.name)}</span>${off ? `<small>Indisponible</small>` : (g.n === 1 || g.uniq
@@ -1854,9 +1857,9 @@ const CONFIG = {
       if (d > 0 && gCount(g) >= g.n) { if (g.n === 1) g.sel = {}; else { toast(`Déjà ${g.n} choisis. Retire-en un d'abord.`); return; } }
       g.sel[k] = (g.sel[k] || 0) + d; if (g.sel[k] <= 0) delete g.sel[k]; paintPick(); return; }
     if (e.target.closest("[data-pk-ok]") && pk) {
-      const miss = pk.groups.find(g => !gOk(g));
+      const miss = pk.groups.find(g => gOn(g) && !gOk(g));
       if (miss) { const d = PF[miss.from] || {}; toast(miss.n > 1 ? `Choisis ${miss.n} ${d.plural || miss.from}` : `Choisis ${d.one || miss.from}`); return; }
-      const ch = pk.groups.flatMap(g => g.pool.filter(o => g.sel[o.key]).map(o => g.sel[o.key] > 1 ? `${o.key}*${g.sel[o.key]}` : o.key)).join(",");
+      const ch = pk.groups.filter(gOn).flatMap(g => g.pool.filter(o => g.sel[o.key]).map(o => g.sel[o.key] > 1 ? `${o.key}*${g.sel[o.key]}` : o.key)).join(",");
       const id = `${pk.p.id}${pk.size ? `|${pk.size}` : ""}~${ch}`;
       cart[id] = (cart[id] || 0) + 1; save(); renderCart(); closeAll(); pk = null;
       toast("Ajouté au panier ✓");
@@ -2599,7 +2602,7 @@ const CONFIG = {
     "Lien à ajouter dans CONFIG.order": "الرابط خاصو يتزاد",
     /* ---- panier ---- */
     "Ton panier": "السلة ديالك", "Panier vide ?": "السلة خاوية؟", "Une slice, ça se refuse pas.": "سلايس، ما كتترفضش.",
-    "Je prends": "نديها", "Total estimé": "المجموع تقريباً", "Sous-total": "ثمن الكوموند", "Pour toute la table. Ta sauce + jusqu'à 4 ingrédients au choix.": "للطابلة كاملة. الصوص ديالك + حتى 4 مكونات على ذوقك.",
+    "Je prends": "نديها", "Total estimé": "المجموع تقريباً", "Sous-total": "ثمن الكوموند", "Pour toute la table. Ta sauce + ta sorte, ou Quatre saisons (4 sortes au choix).": "للطابلة كاملة. الصوص ديالك + النوع اللي بغيتي، ولا كاتر سيزون (4 أنواع على ذوقك).",
     "-20 % sur toutes les pizzas Large et XXL": "-20% على جميع البيتزا Large و XXL",
     "Black Friday · -20 % sur toutes les pizzas Large et XXL": "Black Friday · -20% على جميع البيتزا Large و XXL",
     "jusqu'au dimanche 29 novembre": "حتى نهار الحد 29 نونبر",
@@ -2735,6 +2738,8 @@ const CONFIG = {
     [/^Jusqu'à (\d+) ingrédients \(facultatif\) (\d+)\/(\d+)$/, (m, a, b, c) => `حتى ${a} مكونات (إلا بغيتي) ${b}/${c}`],
     [/^Jusqu'à (\d+) ingrédients \(facultatif\)$/, (m, a) => `حتى ${a} مكونات (إلا بغيتي)`],
     [/^Choisis ta sauce (\d+)\/(\d+)$/, (m, a, b) => `ختار الصوص ${a}/${b}`], [/^Choisis ta sauce$/, () => "ختار الصوص"],
+    [/^Choisis ta sorte de XXL (\d+)\/(\d+)$/, (m, a, b) => `ختار نوع XXL ${a}/${b}`], [/^Choisis ta sorte de XXL$/, () => "ختار نوع XXL"],
+    [/^Choisis 4 sortes pour ta Quatre saisons (\d+)\/(\d+)$/, (m, a, b) => `ختار 4 أنواع للكاتر سيزون ${a}/${b}`], [/^Choisis 4 sortes pour ta Quatre saisons$/, () => "ختار 4 أنواع للكاتر سيزون"],
     [/^Ajouter au panier · (\d+) DH$/, (m, a) => `زيد للسلة · ${a} درهم`],
     [/^Déjà (\d+) choisis\. Retire-en un d'abord\.$/, (m, a) => `ديجا ختاريتي ${a}. حيد واحد قبل.`],
     [/^Plus disponible : (.+)\. Retire-le du panier\.$/, (m, a) => `مابقاش: ${a}. حيدو من السلة.`],
